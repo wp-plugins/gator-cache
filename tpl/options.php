@@ -155,7 +155,7 @@ RewriteRule ^/?(.*)$ /gator_cache/$1index.html [L]
     <?php _e('By Default Gator Cache will cache your posts and pages', 'gatorcache');?>.
   </p>
 <?php $postTypes = get_post_types(array('public'   => true, '_builtin' => false), 'objects');
-if(is_plugin_active('bbpress/bbpress.php')){//it's bbpress Jim
+if($isBbPress = is_plugin_active('bbpress/bbpress.php')){//it's bbpress Jim
     unset($postTypes[bbp_get_reply_post_type()]);//reply won't have a permalink
 }
 if(defined('WOOCOMMERCE_VERSION')){//woocommerce
