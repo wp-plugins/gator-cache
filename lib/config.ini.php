@@ -1,5 +1,5 @@
 <?php exit;?>
-lifetime = 0
+lifetime = 1209600
 cache_dir = "/tmp"
 group = "page"
 enabled = 0

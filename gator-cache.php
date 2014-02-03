@@ -1,16 +1,17 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.0
+ * @version 1.1
  */
 /*
 Plugin Name: Gator Cache
+Plugin URI: http://wordpress.org/plugins/gator-cache/
 Description: A Stronger, Better, Faster Wordpress Cache Plugin. Easy to install and manage. 
 Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.0
+Version: 1.1
 */
 class WpGatorCache
 {
@@ -18,24 +19,29 @@ class WpGatorCache
         'installed' => false,
         'enabled' => false,
         'debug' => true,
-        'lifetime' => array('value' => '2', 'unit' => 'week', 'sec' => 0),
+        'lifetime' => array('value' => '2', 'unit' => 'week', 'sec' => 1209600),
         'post_types' => array('product'),
+        'app_support' => array(),
         'roles' => array('subscriber'),
         'refresh' => array('home' => true, 'archive' => true, 'all' => false),
-        'pingback' => false
+        'pingback' => false,
+        'version' => false,
     );
+
     protected static $options;
     protected static $path;
-    protected static $buffering = false;
+    protected static $configPath;
+    protected static $post;
     protected static $refresh = false;
     const PREFIX = 'gtr_cache';
-    const VERSION = '0.9';
+    const VERSION = '1.1';
 
     public static function initBuffer(){
         $options = self::getOptions();
         $request = GatorCache::getRequest();
         global $post;
-        if(!$options['enabled'] || '.php' === substr($path = $request->getBasePath(), -4) //uri returns the whole qs
+        if(!$options['enabled'] || self::VERSION !== $options['version'] //not upgraded
+          || '.php' === substr($path = $request->getBasePath(), -4) //uri returns the whole qs
           || (defined('DONOTCACHEPAGE') && DONOTCACHEPAGE)
           || !isset($post)
           || ('post' !== $post->post_type && 'page' !== $post->post_type && !in_array($post->post_type, $options['post_types']))
@@ -49,7 +55,7 @@ class WpGatorCache
               return;
         }
         //should be good to cache
-        self::$buffering = ob_start('WpGatorCache::onBuffer');
+        ob_start('WpGatorCache::onBuffer');
     }
 
     public static function onBuffer($buffer, $phase){
@@ -58,10 +64,10 @@ class WpGatorCache
         }
         $options = self::getOptions();
         global $post;
-        //if($options['debug']){
-            $buffer .= "\n" . '<!-- Gator Cached on [' . date('r') . $post->post_type . '] -->';
-        //}
-        $cache = GatorCache::getCache($opts = GatorCache::getConfig(self::$path . 'lib/config.ini.php')->toArray());
+        if($options['debug']){
+            $buffer .= "\n" . '<!-- Gator Cached ' . $post->post_type . ' on [' . date('r') . '] -->';
+        }
+        $cache = GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray());
         if(!$cache->has($path = GatorCache::getRequest()->getBasePath(), $opts['group'])){
             $result = $cache->save($path, $buffer, $opts['group']);
             //return $result;
@@ -84,15 +90,13 @@ class WpGatorCache
     }
 
     public static function Activate(){
-        if(is_admin() && false !== get_option($option = self::PREFIX . '_opts')){//reset
-            update_option($option, self::$defaults);
-        }
+        self::checkUpgrade();
     }
 
     public static function Deactivate(){
         //purge the cache
         self::getOptions();
-        GatorCache::getCache($opts = GatorCache::getConfig(self::$path . 'lib/config.ini.php')->toArray())->purge($opts['group']);
+        GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray())->purge($opts['group']);
         //update wp-cache setting in wp-config.php
         if(self::saveWpConfig(false)){//remove the advanced cache file
             @unlink(WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'advanced-cache.php');
@@ -104,15 +108,10 @@ class WpGatorCache
     }
 
     public static function renderMenu(){
-        add_action( 'admin_notices', 'WpGatorCache::showNotice');
         $options = self::getOptions();
         //var_dump($options);
-        $config = GatorCache::getConfig(self::$path . 'lib/config.ini.php');
-        //check if re-installed, also checked on register hook
-        if('/tmp' === $config->get('cache_dir') && $options['installed']){//reset options
-            GatorCache::getOptions(self::PREFIX . '_opts')->write(self::$defaults);
-        }
-        include  self::$path . (true !== $options['installed'] || '/tmp' === $config->get('cache_dir') ? 'tpl/install.php' : 'tpl/options.php');
+        $config = GatorCache::getConfig(self::$configPath);
+        include  self::$path . (!$options['installed'] || '/tmp' === $config->get('cache_dir') ? 'tpl/install.php' : 'tpl/options.php');
     }
 
     public static function settingsLink($links){
@@ -141,7 +140,7 @@ class WpGatorCache
         $cache = array('lifetime' => null, 'enabled' => null, 'skip_user' => null, 'debug' => null);
         switch($_POST['action']){
             case 'gci_del':
-                $result = GatorCache::getCache($opts = GatorCache::getConfig(self::$path . 'lib/config.ini.php')->toArray())->purge($opts['group']);
+                $result = GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray())->purge($opts['group']);
                 if(!$result){
                     $msg = __('Cache could not be purged', 'gatorcache');
                     die('{"success":"0","error":' . json_encode($msg) . '}');
@@ -171,10 +170,9 @@ class WpGatorCache
                 }
                 if($value !== $options['lifetime']['value'] || $unit !== $options['lifetime']['unit']){
                     $update = true;
-                    $lifetime = array('value' => $value, 'unit' => $unit);
                     $mult = 'hr' === $unit ? 3600 : ('day' === $unit ? 86400: ('week' === $unit ? 604800 : 2629800));
-                    $lifetime['sec'] = $cache['lifetime'] = '0' === $value ? 0 : $mult * $value;
-                    $options['lifetime'] = $lifetime;
+                    $cache['lifetime'] = '0' === $value ? 0 : $mult * $value;
+                    $options['lifetime'] = array('value' => $value, 'unit' => $unit, 'sec' => $cache['lifetime']);
                 }
                 if($enabled !== $options['enabled']){
                     $update = true;
@@ -210,14 +208,33 @@ class WpGatorCache
                 }
                 $types = '' === $_POST['post_types'] ? array() : explode(',', $_POST['post_types']);
                 $validTypes = get_post_types(array('public'   => true, '_builtin' => false));
+                $isForum = false;
+                $bbpTypes = array();
+                if(is_plugin_active('bbpress/bbpress.php')){
+                    $bbpTypes[bbp_get_reply_post_type()] = true;
+                    $bbpTypes[bbp_get_topic_post_type()] = true;
+                    $bbpTypes[bbp_get_forum_post_type()] = true;
+                }
                 foreach($types as $key => $type){//for php 5.2 compat array filter not used here
                     if(!isset($validTypes[$type])){
                         unset($types[$key]);
+                        continue;
+                    }
+                    if(isset($bbpTypes[$type])){
+                        $isForum = true;
                     }
                 }
-                if($types !== $options['post_types']){
+                $app_support = $options['app_support'];
+                if($isForum){//add BBPress support
+                    $app_support['bbpress'] = $bbpTypes;
+                }
+                elseif(isset($app_support['bbpress'])){
+                    unset($app_support['bbpress']);
+                }
+                if($types !== $options['post_types'] || $app_support !== $options['app_support']){
                     $update = true;
                     $options['post_types'] = $types;
+                    $options['app_support'] = $app_support;
                 }
             break;
             case 'gci_dbg':
@@ -241,7 +258,7 @@ class WpGatorCache
         //some options have to be saved to file
         $cache = array_filter($cache, 'WpGatorCache::filterCacheUpdate');//php 5.2 compat
         if(!empty($cache)){
-            $config = GatorCache::getConfig(self::$path . 'lib/config.ini.php');
+            $config = GatorCache::getConfig(self::$configPath);
             foreach($cache as $k => $v){
                 $config->set($k, $v);
             }
@@ -260,7 +277,7 @@ class WpGatorCache
             $pingback = isset($_POST['default_ping_status']) && 'open' === $_POST['default_ping_status'];
             if($pingback !== $options['pingback']){
                 GatorCache::getOptions(self::PREFIX . '_opts')->save('pingback', $pingback);
-                GatorCache::getConfig(self::$path . 'lib/config.ini.php')->save('pingback', $pingback ? get_bloginfo('pingback_url') : false);
+                GatorCache::getConfig(self::$configPath)->save('pingback', $pingback ? get_bloginfo('pingback_url') : false);
             }
         }
         return $whitelist_options;
@@ -280,9 +297,15 @@ class WpGatorCache
         }
         self::killBuffers();
         $options = self::getOptions();
-        $config = GatorCache::getConfig(self::$path . 'lib/config.ini.php');
-        if(true === $options['installed'] && '/tmp' !== $config->get('cache_dir')){
-            die('{"success":"0","error":' . json_encode(__('Error: Gator Cache is already Installed', 'gatorcache')) . '}');
+        if($options['installed']){
+            if(false === ($config = GatorCache::getConfig(self::$configPath, true)) || '/tmp' === $config->get('cache_dir')){
+                GatorCache::getOptions(self::PREFIX . '_opts')->save('installed', false);
+                $_POST['gci_step'] = '1';
+            }
+            else{
+                //die('{"success":"0","error":' . json_encode(__('Error: Gator Cache is already Installed', 'gatorcache')) . '}');
+                $_POST['gci_step'] = '2';
+            }
         }
         if(!isset($_POST['gci_step']) || !ctype_digit($step = $_POST['gci_step'])){
             $step = '1';
@@ -307,9 +330,10 @@ class WpGatorCache
             //Installation complete
             $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
             $wpConfig->set('installed', true);
+            $wpConfig->set('version', self::VERSION);
             if('open' === get_option('default_ping_status')){
                 $wpConfig->set('pingback', true);
-                GatorCache::getConfig(self::$path . 'lib/config.ini.php')->save('pingback', get_bloginfo('pingback_url'));
+                GatorCache::getConfig(self::$configPath)->save('pingback', get_bloginfo('pingback_url'));
             }
             $wpConfig->write();
             die('{"success":"1","msg":' . json_encode($msg) . '}');
@@ -333,12 +357,16 @@ class WpGatorCache
             $error = sprintf(__('Error [105]: Could not parse site url setting [%s], please check Wordpress configuration.', 'gatorcache'), $siteurl);
             die('{"success":"0","error":' . json_encode($error) . '}');
         }
-        $group = str_replace('.', '-', $url['host']) . (empty($url['path']) || '/' === $url['path'] ? '' : str_replace('/', '-', $url['path']));
-        if(!self::saveCachePath($path, $group)){
-            $error = sprintf(__('Error [102]: Could not write to config file [%s], please check permissions.', 'gatorcache'), self::$path . 'lib/config.ini.php');
+        //new with ver 1.1, move config to cfg_dir
+        if(!is_file(self::$configPath) && !self::copyConfigFile(ABSPATH)){
+            $error = sprintf(__('Error [106]: Could not copy config file to your config directory [%s], please check permissions.', 'gatorcache'), ABSPATH);
             die('{"success":"0","error":' . json_encode($error) . '}');
         }
-        
+        $group = str_replace('.', '-', $url['host']) . (empty($url['path']) || '/' === $url['path'] ? '' : str_replace('/', '-', $url['path']));
+        if(!self::saveCachePath($path, $group)){
+            $error = sprintf(__('Error [102]: Could not write to config file [%s], please check permissions.', 'gatorcache'), self::$configPath);
+            die('{"success":"0","error":' . json_encode($error) . '}');
+        }
         die('{"success":"1","msg":' . json_encode($msg) . '}');
     }
 /**
@@ -354,29 +382,45 @@ class WpGatorCache
             return;
         }
         $options = self::getOptions();
-        if(!$options['enabled']
-          || ('post' !== $post->post_type && 'page' !== $post->post_type && !in_array($post->post_type, $options['post_types']))){
+        $postTypes = array('post' => 0, 'page' => 0) + array_flip($options['post_types']);
+        if(isset($options['app_support']['bbpress'])){//bbpress supported - perform ops on child types
+            $postTypes = $options['app_support']['bbpress'] + $postTypes;
+        }
+        if(!$options['enabled'] || self::VERSION !== $options['version'] || !isset($postTypes[$post->post_type])){
             return;
         }
-        $cache = GatorCache::getCache($opts = GatorCache::getConfig(self::$path . 'lib/config.ini.php')->toArray());
+        $cache = GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray());
         if(!$cache->hasCache($opts['group'])){//the cache appears to be empty Jim
             return;
         }
-        if(!$newPost){
-            if(false !== ($path = parse_url(get_permalink($post->ID), PHP_URL_PATH))){
-                self::$refresh = $cache->remove($path, $opts['group'], true);
-            }
-            if('publish' === $new_status){//post is published, no other updates are necessary
-                return;
-            }
-        }
-        //New and Removed Posts
+        //return the same refresh checks for new and updated posts
         if($options['refresh']['all'] && self::hasRecentWidgets()){//purge cache so sidebar widgets refresh @note could refine by post type 'post' === $post->post_type &&
             $cache->purge($opts['group']);
             return self::$refresh = true;
         }
-        //refresh archive pages such as category archives
-        if($options['refresh']['archive'] && false !== ($terms = self::getArchiveTerms($post))){
+        //refresh parent posts and the current post
+        foreach(($posts = self::getRefreshPosts($post, $newPost)) as $postId){
+            if(false !== ($path = parse_url(get_permalink($postId), PHP_URL_PATH))){
+                $cache->remove($path, $opts['group'], true);
+            }
+        }
+        //refresh home page
+        if($options['refresh']['home']){//refresh the home page
+            $cache->remove(DIRECTORY_SEPARATOR, $opts['group']);
+        }
+        //refresh archive pages for this post or the last parent
+        if(!$options['refresh']['archive']){
+            return self::$refresh = true;
+        }
+        if(isset(self::$post)){//bbpress
+            if(false !== ($link = get_post_type_archive_link(self::$post->post_type))
+              && false !== ($path = parse_url($link, PHP_URL_PATH))){
+                $cache->remove($path, $opts['group']);
+            }
+            return self::$refresh = true;
+        }
+        //taxonomy archive
+        if(false !== ($terms = self::getArchiveTerms($post))){
             foreach($terms as $term){
                 if(is_wp_error($termLink = get_term_link($term, $term->taxonomy))){
                     continue;
@@ -386,8 +430,10 @@ class WpGatorCache
                 }
             }
         }
-        if($options['refresh']['home']){//refresh the home page
-            $cache->remove(DIRECTORY_SEPARATOR, $opts['group']);
+        //woocommerce shop
+        if('product' === $post->post_type && false !== ($link = get_permalink(woocommerce_get_page_id('shop')))
+          && false !== ($path = parse_url($link, PHP_URL_PATH))){
+            $cache->remove($path, $opts['group']);
         }
         self::$refresh = true;
     }
@@ -448,7 +494,7 @@ class WpGatorCache
         }
         $options = self::getOptions();
         GatorCache::getCache(
-            GatorCache::getConfig($opts = self::$path . 'lib/config.ini.php')->toArray()
+            $opts = GatorCache::getConfig(self::$configPath)->toArray()
         )->remove($path, $opts['group'], true);
     }
 
@@ -461,9 +507,9 @@ class WpGatorCache
             return self::$options;
         }
         require_once((self::$path = plugin_dir_path(__FILE__)) . 'lib/GatorCache.php');
-        $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts', self::$defaults);
+        self::$configPath = ABSPATH . 'gc-config.ini.php';//has to go here in case if subdir hosts
         //rather than implementing arrayaccess
-        return self::$options = $wpConfig->toArray();
+        return self::$options = GatorCache::getOptions(self::PREFIX . '_opts', self::$defaults)->toArray();
     }
 
     public static function filterStatus($header){
@@ -476,15 +522,45 @@ class WpGatorCache
         return empty($status);
     }
 
+    protected static function copyConfigFile($configDir){
+        return false !== @copy(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.ini.php',  $configDir . 'gc-config.ini.php');
+    }
+
     protected static function saveCachePath($path, $group){
-        $config = GatorCache::getConfig(self::$path . 'lib/config.ini.php');
-        $cacheDir = $config->get('cache_dir');
-        if($cacheDir === $path){
-            return true;
+        if(false === $config = GatorCache::getConfig(self::$configPath, true)){
+            return false;
         }
         $config->set('cache_dir', $path);
         $config->set('group', $group);
         return $config->write();
+    }
+
+    protected static function getRefreshPosts($post, $isNew){
+        $ids = array();
+        if(!$isNew){
+            $ids[] = $post->ID;
+        }
+        if(isset(self::$options['app_support']['bbpress']) && isset(self::$options['app_support']['bbpress'][$post->post_type])){//get bbpress parent posts
+            self::$post = $post;//seeder
+            for($xx=0;$xx<25;$xx++){
+                if(false === $id = self::getParentPost(self::$post)){
+                    break;
+                }
+                $ids[] = $id;
+            }
+        }
+        return $ids;
+    }
+
+    protected static function getParentPost($post){
+        if(0 === $post->post_parent){
+            return false;
+        }
+        if(null !== ($parent = get_post($post->post_parent))){
+            self::$post = $parent;
+            return self::$post->ID;
+        }
+        return false;
     }
 
     protected static function saveWpConfig($wp_cache = true){
@@ -572,6 +648,43 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
         global $woocommerce;
         return defined('WOOCOMMERCE_VERSION') && isset($woocommerce) && isset($woocommerce->cart) && 0 < $woocommerce->cart->cart_contents_count;
     }
+
+    public static function checkUpgrade(){
+        if(defined('DOING_AJAX') && DOING_AJAX){
+            return;
+        }
+        $options = self::getOptions();
+        if(!$options['installed']){
+            return;
+        }
+        //1.0 > 1.1 store the version and move the config file
+        if(!is_file(self::$configPath)){
+            $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
+            if(self::copyConfigFile(ABSPATH)){
+                //upgrade successful, sync the options, only for this upgrade
+                $config = GatorCache::getConfig(self::$configPath);
+                $config->set('debug', $options['debug']);
+                $config->set('pingback', $options['pingback'] ? get_bloginfo('pingback_url') : false);
+                $config->set('lifetime', $options['lifetime']['sec']);
+                $config->write();
+                //will still have to reinstall to get the path, so disable
+                $wpConfig->set('version', self::$options['version'] = self::VERSION);
+                $wpConfig->set('enabled', false);
+                $wpConfig->write();
+                return;
+            }
+            //houston we have a problem
+            $wpConfig->set('installed', self::$options['installed'] = false);
+            $wpConfig->set('enabled', self::$options['enabled'] = false);
+            $wpConfig->write();
+            return;
+        }
+        if(self::VERSION !== $options['version']){//do some future upgrades and update version
+            $wpConfig->set('version', self::$options['version'] = self::VERSION);
+            $wpConfig->write();//update options
+            return;
+        }
+    }
 }
 //Hooks
 register_activation_hook(__FILE__, 'WpGatorCache::Activate');
@@ -582,6 +695,7 @@ add_action('init', 'WpGatorCache::loadTextDomain');
 //admin settings
 if(is_admin()){
     add_action('admin_menu', 'WpGatorCache::addOptMenu', 8);
+    add_action('admin_init', 'WpGatorCache::checkUpgrade');
     add_action('admin_enqueue_scripts', 'WpGatorCache::loadAdminJs', 111);
     add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'WpGatorCache::settingsLink');
     //installation ajax
@@ -594,9 +708,8 @@ if(is_admin()){
     add_action('wp_ajax_gci_del', 'WpGatorCache::updateSettings');
     add_action('wp_ajax_gci_ref', 'WpGatorCache::updateSettings');
     add_filter('whitelist_options', 'WpGatorCache::pingSetting');
-    //post status
-    add_action('transition_post_status', 'WpGatorCache::savePost', 11111, 3);
     add_filter('redirect_post_location', 'WpGatorCache::savePostContext');
     add_filter('post_updated_messages', 'WpGatorCache::savePostMsg', 11);
 }
+add_action('transition_post_status', 'WpGatorCache::savePost', 11111, 3);
 add_action('transition_comment_status', 'WpGatorCache::saveComment', 11, 3);

@@ -224,7 +224,14 @@ class Cache_Lite
      * Store the filetime so it can be passed back
      */
     var $_fileTime = false;
-    
+
+    /**
+     * Debug mode
+     * 
+     * debug mode flag now that Pear error is not used
+     */
+    var $_debug = false;
+
     /**
     * Enable / disable automatic serialization
     *
@@ -279,7 +286,8 @@ class Cache_Lite
      * @var boolean
      */
     var $_errorHandlingAPIBreak = false;
-    
+
+    protected static $availableOptions = array('errorHandlingAPIBreak' => true, 'hashedDirectoryUmask' => true, 'hashedDirectoryLevel' => true, 'automaticCleaningFactor' => true, 'automaticSerialization' => true, 'fileNameProtection' => true, 'memoryCaching' => true, 'onlyMemoryCaching' => true, 'memoryCachingLimit' => true, 'cacheDir' => true, 'caching' => true, 'lifeTime' => true, 'fileLocking' => true, 'writeControl' => true, 'readControl' => true, 'readControlType' => true, 'debug' => true);
     // --- Public methods ---
 
     /**
@@ -317,7 +325,7 @@ class Cache_Lite
     * @param array $options options
     * @access public
     */
-    function Cache_Lite($options = array(NULL))
+    function __construct($options = array(NULL))
     {
         foreach($options as $key => $value) {
             $this->setOption($key, $value);
@@ -338,9 +346,8 @@ class Cache_Lite
     */
     function setOption($name, $value) 
     {
-        $availableOptions = array('errorHandlingAPIBreak', 'hashedDirectoryUmask', 'hashedDirectoryLevel', 'automaticCleaningFactor', 'automaticSerialization', 'fileNameProtection', 'memoryCaching', 'onlyMemoryCaching', 'memoryCachingLimit', 'cacheDir', 'caching', 'lifeTime', 'fileLocking', 'writeControl', 'readControl', 'readControlType', 'pearErrorMode');
-        if (in_array($name, $availableOptions)) {
-            $property = '_'.$name;
+        if (isset(self::$availableOptions[$name])) {
+            $property = '_' . $name;
             $this->$property = $value;
         }
     }
@@ -498,11 +505,7 @@ class Cache_Lite
     function clean($group = false, $mode = 'ingroup')
     {
         if($this->_fileDirMode){
-            $result = $this->_cleanDir($this->_cacheDir . (false === $group ? '' : $group . DIRECTORY_SEPARATOR), false, $mode);
-            if(!$result){
-                return false;
-            }
-            
+            return $this->_cleanDir($this->_cacheDir . (false === $group ? '' : $group . DIRECTORY_SEPARATOR), false, $mode);
         }
         return $this->_cleanDir($this->_cacheDir, $group, $mode);
     }
@@ -668,7 +671,9 @@ class Cache_Lite
         /*include_once('PEAR.php');
         return PEAR::raiseError($msg, $code, $this->_pearErrorMode);*/
         //throw new RuntimeException(sprintf('Error [%d]: %s', $code, $msg));
-        trigger_error(sprintf('Error [%d]: %s', $code, $msg), E_USER_NOTICE);
+        if($this->_debug){
+            trigger_error(sprintf('Error [%d]: %s', $code, $msg), E_USER_NOTICE);
+        }
         return false;
     }
     
@@ -727,6 +732,9 @@ class Cache_Lite
     */
     function _cleanDir($dir, $group = false, $mode = 'ingroup')     
     {
+        if($this->_fileDirMode && !is_dir($dir)){//the cache has already been deleted
+            return true;
+        }
         if($this->_fileDirMode){
             $motif = '';
         }
@@ -745,9 +753,6 @@ class Cache_Lite
             if ($this->_onlyMemoryCaching) {
                 return true;
             }
-        }
-        if($this->_fileDirMode && !is_dir($dir)){//the cache has already been deleted
-            return true;
         }
         if (!($dh = opendir($dir))) {
             return $this->raiseError('Cache_Lite : Unable to open cache directory !', -4);

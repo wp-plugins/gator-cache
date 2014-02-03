@@ -155,6 +155,15 @@ RewriteRule ^/?(.*)$ /gator_cache/$1index.html [L]
     <?php _e('By Default Gator Cache will cache your posts and pages', 'gatorcache');?>.
   </p>
 <?php $postTypes = get_post_types(array('public'   => true, '_builtin' => false), 'objects');
+if(is_plugin_active('bbpress/bbpress.php')){//it's bbpress Jim
+    unset($postTypes[bbp_get_reply_post_type()]);//reply won't have a permalink
+}
+if(defined('WOOCOMMERCE_VERSION')){//woocommerce
+    unset($postTypes['product_variation'], $postTypes['shop_coupon']);
+}
+if(isset($postTypes['wooframework'])){//woothemes
+    unset($postTypes['wooframework']);
+}
 if(empty($postTypes)){?>
   <p><?php _e('Additional post types were not found.');?></p>
 <?php } else{//there are post types?>
@@ -176,7 +185,10 @@ if(empty($postTypes)){?>
   </p>
   <p><button class="button-primary"><?php _e('Update', 'gatorcache');?></button></p>
 <?php }?>
-  <p>*<?php _e('In addition to your regular Wordpress posts and pages, you may cache other post types as well, eg WooCommerce Products', 'gatorcache');?>.</p>
+  <p>*<?php _e('In addition to your regular Wordpress posts and pages, you may cache other post types as well, eg WooCommerce Products.', 'gatorcache');?></p>
+<?php if($isBbPress){?>
+  <p>**<?php printf(__('To cache %s pages, select Forums and Topics. They will always be fresh, since Gator Cache automatically refreshes when topics are added or replies are posted.', 'gatorcache'), '<em><strong>bbPress</strong></em>');?></p>
+<?php }?>
 </form>
 </div>
 <div id="tabs-3">
@@ -190,8 +202,7 @@ if(empty($postTypes)){?>
 </form>
 <form id="gci_del" method="post" action="">
   <p class="result" style="display:none;color:forestgreen;font-weight:600"></p>
-  <p><?php _e('Purge the entire cache. All cache files will be deleted.');?></p>
-  <p><button class="button-primary"><?php _e('Purge', 'gatorcache');?></button></p>
+  <p><?php _e('Purge the entire cache. All cache files will be deleted.');?> <button class="button-secondary" style="margin-left:.5em"><?php _e('Purge', 'gatorcache');?></button></p>
 </form>
 <p><?php _e('Tech Support Forum:', 'gatorcache');?> <a href="http://gatordev.com/support/forum/gator-cache/" target="_blank">http://gatordev.com/support/forum/gator-cache/</a></p>
 <p><?php _e('Tech Support Information:', 'gatorcache');?>

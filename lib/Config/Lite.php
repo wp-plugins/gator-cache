@@ -30,7 +30,7 @@ class Config_Lite
             if(isset($default)){
                 $this->config = $default;
             }
-            trigger_error(sprintf('Unable to parse config ini file [%s]', $path), E_USER_NOTICE);
+            throw new InvalidArgumentException(sprintf('Unable to parse config ini file [%s]', $path));
         }
         else{
             $this->config = $config;
@@ -38,7 +38,7 @@ class Config_Lite
     }
 
     public function get($key){
-        return isset($this->config[$key]) ? $this->config[$key] : false;
+        return isset($this->config[$key]) ? $this->config[$key] : false;//this should return null
     }
 
     public function set($key, $val){

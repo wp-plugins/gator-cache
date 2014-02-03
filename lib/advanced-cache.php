@@ -1,10 +1,8 @@
 <?php
 if(!defined('ABSPATH') || is_admin() || (defined('WP_INSTALLING') && WP_INSTALLING)
-  || false === @include_once(($path = WP_CONTENT_DIR . '/plugins/gator-cache/lib/') . 'GatorCache.php')){
-    return;
-}
-$config = GatorCache::getConfig($path . 'config.ini.php');
-if(!$config->get('enabled')){
+  || false === @include_once(WP_CONTENT_DIR . '/plugins/gator-cache/lib/GatorCache.php')
+  || false === ($config = GatorCache::getConfig(ABSPATH . 'gc-config.ini.php', true))
+  || !$config->get('enabled')){
     return;
 }
 if(!defined('GC_CHK_USER') && $config->get('skip_user')){

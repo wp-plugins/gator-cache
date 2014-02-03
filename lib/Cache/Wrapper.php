@@ -34,7 +34,11 @@ class Cache_Wrapper
             $this->config = $config + $this->config;
         }
         $this->config['lifetime'] = (int)$this->config['lifetime'];
-        $this->cache = new Cache_Lite(array('cacheDir' => $this->config['cache_dir'] . DIRECTORY_SEPARATOR, 'lifeTime' => $this->config['lifetime']));
+        $this->cache = new Cache_Lite(array(
+            'cacheDir' => $this->config['cache_dir'] . DIRECTORY_SEPARATOR,
+            'lifeTime' => $this->config['lifetime'],
+            'debug'    => $this->config['debug']
+        ));
         /*if(false !== ($cacheTtls = $this->cache->get('cacheTtls'))){
             $this->cacheTtls = unserialize($cacheTtls);
         }*/
@@ -88,7 +92,10 @@ class Cache_Wrapper
         if($this->config['gzip']){
             $this->cache->remove($id, $group, 'index.gz', $check);
         }
-        return $this->cache->remove($id, $group, 'index.html', $check);
+        $result = $this->cache->remove($id, $group, 'index.html', $check);
+        //zap any pagination
+        $this->cache->clean($group . $id  . 'page');
+        return $result; 
     }
 
     public function getCache(){

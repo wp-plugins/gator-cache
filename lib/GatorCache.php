@@ -42,10 +42,17 @@ class GatorCache
         return self::$request;
     }
 
-    public static function getConfig($path){
+    public static function getConfig($path, $chkPath = false){
         if(!isset(self::$config)){
             require_once(dirname(__FILE__) . '/Config/Lite.php');
-            self::$config = new Config_Lite($path);
+            try{
+                self::$config = new Config_Lite($path);
+            } catch (Exception $e){
+                if($chkPath){
+                    unset(self::$config);
+                    return false;
+                }
+            }
         }
         return self::$config;
     }
