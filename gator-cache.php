@@ -1,17 +1,17 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.1
+ * @version 1.11
  */
 /*
 Plugin Name: Gator Cache
 Plugin URI: http://wordpress.org/plugins/gator-cache/
-Description: A Stronger, Better, Faster Wordpress Cache Plugin. Easy to install and manage. 
+Description: A Better, Stronger, Faster Wordpress Cache Plugin. Easy to install and manage. 
 Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.1
+Version: 1.11
 */
 class WpGatorCache
 {
@@ -34,7 +34,7 @@ class WpGatorCache
     protected static $post;
     protected static $refresh = false;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.1';
+    const VERSION = '1.11';
 
     public static function initBuffer(){
         $options = self::getOptions();
@@ -297,16 +297,6 @@ class WpGatorCache
         }
         self::killBuffers();
         $options = self::getOptions();
-        if($options['installed']){
-            if(false === ($config = GatorCache::getConfig(self::$configPath, true)) || '/tmp' === $config->get('cache_dir')){
-                GatorCache::getOptions(self::PREFIX . '_opts')->save('installed', false);
-                $_POST['gci_step'] = '1';
-            }
-            else{
-                //die('{"success":"0","error":' . json_encode(__('Error: Gator Cache is already Installed', 'gatorcache')) . '}');
-                $_POST['gci_step'] = '2';
-            }
-        }
         if(!isset($_POST['gci_step']) || !ctype_digit($step = $_POST['gci_step'])){
             $step = '1';
         }
@@ -657,31 +647,12 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
         if(!$options['installed']){
             return;
         }
-        //1.0 > 1.1 store the version and move the config file
-        if(!is_file(self::$configPath)){
+        //1.0 > 1.11 store the version and move the config file
+        if(self::VERSION !== $options['version']){
             $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
-            if(self::copyConfigFile(ABSPATH)){
-                //upgrade successful, sync the options, only for this upgrade
-                $config = GatorCache::getConfig(self::$configPath);
-                $config->set('debug', $options['debug']);
-                $config->set('pingback', $options['pingback'] ? get_bloginfo('pingback_url') : false);
-                $config->set('lifetime', $options['lifetime']['sec']);
-                $config->write();
-                //will still have to reinstall to get the path, so disable
-                $wpConfig->set('version', self::$options['version'] = self::VERSION);
-                $wpConfig->set('enabled', false);
-                $wpConfig->write();
-                return;
-            }
-            //houston we have a problem
             $wpConfig->set('installed', self::$options['installed'] = false);
             $wpConfig->set('enabled', self::$options['enabled'] = false);
             $wpConfig->write();
-            return;
-        }
-        if(self::VERSION !== $options['version']){//do some future upgrades and update version
-            $wpConfig->set('version', self::$options['version'] = self::VERSION);
-            $wpConfig->write();//update options
             return;
         }
     }
