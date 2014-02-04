@@ -63,16 +63,16 @@ class WpGatorCache
             return $buffer;
         }
         $options = self::getOptions();
-        global $post;
-        if($options['debug']){
-            $buffer .= "\n" . '<!-- Gator Cached ' . $post->post_type . ' on [' . date('r') . '] -->';
-        }
-        if(false === ($cache = GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray(), true))){
+        if(false === ($config = GatorCache::getConfig(self::$configPath, true))){//check config is loaded
             return;
         }
+        if($options['debug']){
+            global $post;
+            $buffer .= "\n" . '<!-- Gator Cached ' . $post->post_type . ' on [' . date('r') . '] -->';
+        }
+        $cache = GatorCache::getCache($opts = $config->toArray());
         if(!$cache->has($path = GatorCache::getRequest()->getBasePath(), $opts['group'])){
-            $result = $cache->save($path, $buffer, $opts['group']);
-            //return $result;
+            $result = $cache->save($path, $buffer, $opts['group']);//return $result;
         }
         return $buffer;
     }
