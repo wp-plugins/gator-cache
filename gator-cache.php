@@ -92,7 +92,17 @@ class WpGatorCache
     }
 
     public static function Activate(){
-        self::checkUpgrade();
+        $options = self::getOptions();
+        if(!$options['installed']){//install will handle this
+            return;
+        }
+        //check config and advance cache
+        if(!self::saveWpConfig() || !self::copyAdvCache()){
+            $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
+            $wpConfig->set('installed', false);
+            $wpConfig->set('enabled', false);
+            $wpConfig->write();
+        }
     }
 
     public static function Deactivate(){
@@ -102,6 +112,24 @@ class WpGatorCache
         //update wp-cache setting in wp-config.php
         if(self::saveWpConfig(false)){//remove the advanced cache file
             @unlink(WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'advanced-cache.php');
+        }
+    }
+
+    public static function checkUpgrade(){
+        if(defined('DOING_AJAX') && DOING_AJAX){
+            return;
+        }
+        $options = self::getOptions();
+        if(!$options['installed']){
+            return;
+        }
+        //1.0 > 1.11 store the version and move the config file
+        if(self::VERSION !== $options['version']){
+            $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
+            $wpConfig->set('installed', self::$options['installed'] = false);
+            $wpConfig->set('enabled', self::$options['enabled'] = false);
+            $wpConfig->write();
+            return;
         }
     }
 
@@ -130,6 +158,92 @@ class WpGatorCache
         wp_enqueue_script('gator-cache', $pluginUrl . '/js/gator-cache.js', array('jquery-ui-tabs'), self::VERSION, true);
         wp_enqueue_style('jquery-ui', '//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/themes/redmond/jquery-ui.css');
         wp_enqueue_style('chosen', $pluginUrl . '/css/chosen.css');
+    }
+
+    public static function filterCacheUpdate($v){
+        return null !== $v;
+    }
+
+    public static function pingSetting($whitelist_options){
+        if(isset($_POST['option_page']) && 'discussion' === $_POST['option_page']){
+            $options = self::getOptions();
+            $pingback = isset($_POST['default_ping_status']) && 'open' === $_POST['default_ping_status'];
+            if($pingback !== $options['pingback']){
+                GatorCache::getOptions(self::PREFIX . '_opts')->save('pingback', $pingback);
+                GatorCache::getConfig(self::$configPath)->save('pingback', $pingback ? get_bloginfo('pingback_url') : false);
+            }
+        }
+        return $whitelist_options;
+    }
+
+    public static function getInitDir($inRoot = false){
+        if(null === ($dir = GatorCache::getRequest()->getServer('DOCUMENT_ROOT'))
+          && null === ($dir = GatorCache::getRequest()->getServer('PWD'))){
+            $dir = defined(ABSPATH) ? ABSPATH : realpath('./../');
+        }
+        return ($inRoot ? $dir : dirname($dir)) . DIRECTORY_SEPARATOR . 'gator_cache';
+    }
+
+    public static function doInstall(){
+        if(!current_user_can('edit_posts')){
+            die('0');
+        }
+        self::killBuffers();
+        $options = self::getOptions();
+        if(!isset($_POST['gci_step']) || !ctype_digit($step = $_POST['gci_step'])){
+            $step = '1';
+        }
+        if('2' === $step){
+            if(!self::copyAdvCache()){
+                $error = __('Error [103]: could not copy advance cache php file, please copy manually', 'gatorcache');
+                die('{"success":"0","error":' . json_encode($error) . '}');
+            }
+            if(!self::saveWpConfig()){
+                $error = __('Error [104]: Could not write to your wordpress config file, please change permissions or manually insert WP_CACHE', 'gatorcache');
+                die('{"success":"0","error":' . json_encode($error) .'}');
+            }
+            //Installation complete
+            $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
+            $wpConfig->set('installed', true);
+            $wpConfig->set('version', self::VERSION);
+            if('open' === get_option('default_ping_status')){
+                $wpConfig->set('pingback', true);
+                GatorCache::getConfig(self::$configPath)->save('pingback', get_bloginfo('pingback_url'));
+            }
+            $wpConfig->write();
+            $msg = __('Gator Cache Successfully Installed', 'gatorcache');
+            die('{"success":"1","msg":' . json_encode($msg) . '}');
+        }
+        if(is_dir($path = self::getInitDir(isset($_POST['ndoc_root']) && '1' === $_POST['ndoc_root']))){
+            if(!@is_writable($path)){
+                $error = sprintf(__('Error [101]: Cache Directory [%s] is not writable, please change permissions.', 'gatorcache'), $path);
+                die('{"success":"0","error":' . json_encode() . '}');
+            }
+            $msg = __('Cache directory exists, proceeding to Step 2', 'gatorcache');
+        }
+        else{
+            if(false === @mkdir($path, 0755)){
+                $error = __('Error [100]: Cache Directory could not be created', 'gatorcache');
+                die('{"success":"0","error":' . json_encode($error) . '}');
+            }
+            $msg = __('Cache directory created, proceeding to Step 2', 'gatorcache');
+        }
+        //get the group for subdir support or people that put blogs in the doc root
+        if(false === ($url = parse_url($siteurl = get_option('siteurl')))){
+            $error = sprintf(__('Error [105]: Could not parse site url setting [%s], please check Wordpress configuration.', 'gatorcache'), $siteurl);
+            die('{"success":"0","error":' . json_encode($error) . '}');
+        }
+        //new with ver 1.1, move config to cfg_dir
+        if(!is_file(self::$configPath) && !self::copyConfigFile(ABSPATH)){
+            $error = sprintf(__('Error [106]: Could not copy config file to your config directory [%s], please check permissions.', 'gatorcache'), ABSPATH);
+            die('{"success":"0","error":' . json_encode($error) . '}');
+        }
+        $group = str_replace('.', '-', $url['host']) . (empty($url['path']) || '/' === $url['path'] ? '' : str_replace('/', '-', $url['path']));
+        if(!self::saveCachePath($path, $group)){
+            $error = sprintf(__('Error [102]: Could not write to config file [%s], please check permissions.', 'gatorcache'), self::$configPath);
+            die('{"success":"0","error":' . json_encode($error) . '}');
+        }
+        die('{"success":"1","msg":' . json_encode($msg) . '}');
     }
 
     public static function updateSettings(){
@@ -269,98 +383,6 @@ class WpGatorCache
         die('{"success":"1"}');
     }
 
-    public static function filterCacheUpdate($v){
-        return null !== $v;
-    }
-
-    public static function pingSetting($whitelist_options){
-        if(isset($_POST['option_page']) && 'discussion' === $_POST['option_page']){
-            $options = self::getOptions();
-            $pingback = isset($_POST['default_ping_status']) && 'open' === $_POST['default_ping_status'];
-            if($pingback !== $options['pingback']){
-                GatorCache::getOptions(self::PREFIX . '_opts')->save('pingback', $pingback);
-                GatorCache::getConfig(self::$configPath)->save('pingback', $pingback ? get_bloginfo('pingback_url') : false);
-            }
-        }
-        return $whitelist_options;
-    }
-
-    public static function getInitDir($inRoot = false){
-        if(null === ($dir = GatorCache::getRequest()->getServer('DOCUMENT_ROOT'))
-          && null === ($dir = GatorCache::getRequest()->getServer('PWD'))){
-            $dir = defined(ABSPATH) ? ABSPATH : realpath('./../');
-        }
-        return ($inRoot ? $dir : dirname($dir)) . DIRECTORY_SEPARATOR . 'gator_cache';
-    }
-
-    public static function doInstall(){
-        if(!current_user_can('edit_posts')){
-            die('0');
-        }
-        self::killBuffers();
-        $options = self::getOptions();
-        if(!isset($_POST['gci_step']) || !ctype_digit($step = $_POST['gci_step'])){
-            $step = '1';
-        }
-        if('2' === $step){
-            $sourceFile = self::$path . 'lib' . DIRECTORY_SEPARATOR . 'advanced-cache.php';
-            if(is_file($cacheFile = WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'advanced-cache.php')
-              && md5_file($cacheFile) === md5_file($sourceFile)){
-                $msg = __('Gator Cache Successfully Installed', 'gatorcache');
-            }
-            else{
-                if(false === @copy($sourceFile, $cacheFile)){
-                    $error = __('Error [103]: could not copy advance cache php file, please copy manually', 'gatorcache');
-                    die('{"success":"0","error":' . json_encode($error) . '}');
-                }
-                $msg = __('Gator Cache Successfully Installed', 'gatorcache');
-            }
-            if(false === self::saveWpConfig()){
-                $error = __('Error [104]: Could not write to your wordpress config file, please change permissions or manually insert WP_CACHE', 'gatorcache');
-                die('{"success":"0","error":' . json_encode($error) .'}');
-            }
-            //Installation complete
-            $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
-            $wpConfig->set('installed', true);
-            $wpConfig->set('version', self::VERSION);
-            if('open' === get_option('default_ping_status')){
-                $wpConfig->set('pingback', true);
-                GatorCache::getConfig(self::$configPath)->save('pingback', get_bloginfo('pingback_url'));
-            }
-            $wpConfig->write();
-            die('{"success":"1","msg":' . json_encode($msg) . '}');
-        }
-        if(is_dir($path = self::getInitDir(isset($_POST['ndoc_root']) && '1' === $_POST['ndoc_root']))){
-            if(!@is_writable($path)){
-                $error = sprintf(__('Error [101]: Cache Directory [%s] is not writable, please change permissions.', 'gatorcache'), $path);
-                die('{"success":"0","error":' . json_encode() . '}');
-            }
-            $msg = __('Cache directory exists, proceeding to Step 2', 'gatorcache');
-        }
-        else{
-            if(false === @mkdir($path, 0755)){
-                $error = __('Error [100]: Cache Directory could not be created', 'gatorcache');
-                die('{"success":"0","error":' . json_encode($error) . '}');
-            }
-            $msg = __('Cache directory created, proceeding to Step 2', 'gatorcache');
-        }
-        //get the group for subdir support or people that put blogs in the doc root
-        if(false === ($url = parse_url($siteurl = get_option('siteurl')))){
-            $error = sprintf(__('Error [105]: Could not parse site url setting [%s], please check Wordpress configuration.', 'gatorcache'), $siteurl);
-            die('{"success":"0","error":' . json_encode($error) . '}');
-        }
-        //new with ver 1.1, move config to cfg_dir
-        if(!is_file(self::$configPath) && !self::copyConfigFile(ABSPATH)){
-            $error = sprintf(__('Error [106]: Could not copy config file to your config directory [%s], please check permissions.', 'gatorcache'), ABSPATH);
-            die('{"success":"0","error":' . json_encode($error) . '}');
-        }
-        $group = str_replace('.', '-', $url['host']) . (empty($url['path']) || '/' === $url['path'] ? '' : str_replace('/', '-', $url['path']));
-        if(!self::saveCachePath($path, $group)){
-            $error = sprintf(__('Error [102]: Could not write to config file [%s], please check permissions.', 'gatorcache'), self::$configPath);
-            die('{"success":"0","error":' . json_encode($error) . '}');
-        }
-        die('{"success":"1","msg":' . json_encode($msg) . '}');
-    }
 /**
  * savePost
  * 
@@ -494,16 +516,6 @@ class WpGatorCache
         load_plugin_textdomain('gatorcache', false, 'gator-cache/lang/' );
     }
 
-    protected static function getOptions(){
-        if(isset(self::$options)){
-            return self::$options;
-        }
-        require_once((self::$path = plugin_dir_path(__FILE__)) . 'lib/GatorCache.php');
-        self::$configPath = ABSPATH . 'gc-config.ini.php';//has to go here in case if subdir hosts
-        //rather than implementing arrayaccess
-        return self::$options = GatorCache::getOptions(self::PREFIX . '_opts', self::$defaults)->toArray();
-    }
-
     public static function filterStatus($header){
         return 0 === strpos($header, 'Location');//the status header is not in the return stack
     }
@@ -512,6 +524,16 @@ class WpGatorCache
         //in 5.4 see http_response_code
         $status = array_filter(headers_list(), 'WpGatorCache::filterStatus');//in 5.3 simply use a lambda
         return empty($status);
+    }
+
+    protected static function getOptions(){
+        if(isset(self::$options)){
+            return self::$options;
+        }
+        require_once((self::$path = plugin_dir_path(__FILE__)) . 'lib/GatorCache.php');
+        self::$configPath = ABSPATH . 'gc-config.ini.php';//has to go here in case if subdir hosts
+        //rather than implementing arrayaccess
+        return self::$options = GatorCache::getOptions(self::PREFIX . '_opts', self::$defaults)->toArray();
     }
 
     protected static function copyConfigFile($configDir){
@@ -553,6 +575,15 @@ class WpGatorCache
             return self::$post->ID;
         }
         return false;
+    }
+
+    protected static function copyAdvCache(){
+        $sourceFile = self::$path . 'lib' . DIRECTORY_SEPARATOR . 'advanced-cache.php';
+        if(is_file($cacheFile = WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'advanced-cache.php')
+          && md5_file($cacheFile) === md5_file($sourceFile)){
+            return true;
+        }
+        return false !== @copy($sourceFile, $cacheFile);
     }
 
     protected static function saveWpConfig($wp_cache = true){
@@ -639,24 +670,6 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
     protected static function isWooCart(){//don't cache the mini-cart, lots of themes php code it
         global $woocommerce;
         return defined('WOOCOMMERCE_VERSION') && isset($woocommerce) && isset($woocommerce->cart) && 0 < $woocommerce->cart->cart_contents_count;
-    }
-
-    public static function checkUpgrade(){
-        if(defined('DOING_AJAX') && DOING_AJAX){
-            return;
-        }
-        $options = self::getOptions();
-        if(!$options['installed']){
-            return;
-        }
-        //1.0 > 1.11 store the version and move the config file
-        if(self::VERSION !== $options['version']){
-            $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
-            $wpConfig->set('installed', self::$options['installed'] = false);
-            $wpConfig->set('enabled', self::$options['enabled'] = false);
-            $wpConfig->write();
-            return;
-        }
     }
 }
 //Hooks
