@@ -67,7 +67,9 @@ class WpGatorCache
         if($options['debug']){
             $buffer .= "\n" . '<!-- Gator Cached ' . $post->post_type . ' on [' . date('r') . '] -->';
         }
-        $cache = GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray());
+        if(false === ($cache = GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray(), true))){
+            return;
+        }
         if(!$cache->has($path = GatorCache::getRequest()->getBasePath(), $opts['group'])){
             $result = $cache->save($path, $buffer, $opts['group']);
             //return $result;
@@ -517,7 +519,7 @@ class WpGatorCache
     }
 
     protected static function saveCachePath($path, $group){
-        if(false === $config = GatorCache::getConfig(self::$configPath, true)){
+        if(false === ($config = GatorCache::getConfig(self::$configPath, true))){
             return false;
         }
         $config->set('cache_dir', $path);
