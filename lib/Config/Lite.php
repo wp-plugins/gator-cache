@@ -26,7 +26,7 @@ class Config_Lite
     protected $path;
 
     public function __construct($path, $default = null){
-        if(false === ($config = parse_ini_file($this->path = $path))){
+        if(false === ($config = @parse_ini_file($this->path = $path))){
             if(isset($default)){
                 $this->config = $default;
             }
