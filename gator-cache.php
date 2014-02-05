@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.11
+ * @version 1.2
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.11
+Version: 1.2
 */
 class WpGatorCache
 {
@@ -21,6 +21,7 @@ class WpGatorCache
         'debug' => true,
         'lifetime' => array('value' => '2', 'unit' => 'week', 'sec' => 1209600),
         'post_types' => array('product'),
+        'exclude_paths' => array(),
         'app_support' => array(),
         'roles' => array('subscriber'),
         'refresh' => array('home' => true, 'archive' => true, 'all' => false),
@@ -34,13 +35,13 @@ class WpGatorCache
     protected static $post;
     protected static $refresh = false;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.11';
+    const VERSION = '1.2';
 
     public static function initBuffer(){
         $options = self::getOptions();
         $request = GatorCache::getRequest();
         global $post;
-        if(!$options['enabled'] || self::VERSION !== $options['version'] //not upgraded
+        if(!$options['enabled'] || self::VERSION !== $options['version'] //not upgraded only needed for 1.0 > 1.11
           || '.php' === substr($path = $request->getBasePath(), -4) //uri returns the whole qs
           || (defined('DONOTCACHEPAGE') && DONOTCACHEPAGE)
           || !isset($post)
@@ -51,6 +52,7 @@ class WpGatorCache
           || (defined('DOING_AJAX') && DOING_AJAX)
           || is_admin() || is_user_logged_in()
           || '' === get_option('permalink_structure')
+          || self::hasPathExclusion($path)
           || self::isWooCart()){
               return;
         }
@@ -125,11 +127,16 @@ class WpGatorCache
         }
         //1.0 > 1.11 store the version and move the config file
         if(self::VERSION !== $options['version']){
+            $version = (float)$options['version'];
             $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
-            $wpConfig->set('installed', self::$options['installed'] = false);
-            $wpConfig->set('enabled', self::$options['enabled'] = false);
+            if(1.11 > $version){//requires a reinstall
+                $wpConfig->set('installed', self::$options['installed'] = false);
+                $wpConfig->set('enabled', self::$options['enabled'] = false);
+            }
+            else{//store the version
+                $wpConfig->set('version', self::VERSION);
+            }
             $wpConfig->write();
-            return;
         }
     }
 
@@ -140,8 +147,12 @@ class WpGatorCache
     public static function renderMenu(){
         $options = self::getOptions();
         //var_dump($options);
+        if(!self::verifyInstall()){//new install or corrupted install
+            include self::$path . 'tpl/install.php';
+            return;
+        }
         $config = GatorCache::getConfig(self::$configPath);
-        include  self::$path . (!$options['installed'] || '/tmp' === $config->get('cache_dir') ? 'tpl/install.php' : 'tpl/options.php');
+        include  self::$path . 'tpl/options.php';
     }
 
     public static function settingsLink($links){
@@ -154,10 +165,13 @@ class WpGatorCache
             return;
         }
         wp_enqueue_script('jquery-ui-tabs');
+        wp_enqueue_script('jquery-ui-selectable');
         wp_enqueue_script('chosen', ($pluginUrl = plugins_url(null, __FILE__)) . '/js/chosen.jquery.min.js', array('jquery'), '1.0.0', true);
         wp_enqueue_script('gator-cache', $pluginUrl . '/js/gator-cache.js', array('jquery-ui-tabs'), self::VERSION, true);
         wp_enqueue_style('jquery-ui', '//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/themes/redmond/jquery-ui.css');
         wp_enqueue_style('chosen', $pluginUrl . '/css/chosen.css');
+        wp_enqueue_style('gator-cache', $pluginUrl . '/css/gator-cache.css');
+        wp_enqueue_style('font-awesome', '//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css');
     }
 
     public static function filterCacheUpdate($v){
@@ -255,6 +269,29 @@ class WpGatorCache
         $update = false;
         $cache = array('lifetime' => null, 'enabled' => null, 'skip_user' => null, 'debug' => null);
         switch($_POST['action']){
+            case 'gci_dir':
+            case 'gci_xdir':
+                if(empty($_POST['ex_dir']) || '' === ($dir = trim(wp_kses(stripslashes($_POST['ex_dir']), 'strip')))
+                  || '' === $dir = trim(preg_replace('~^/+|/+$~', '', $dir))){
+                    $msg = __('Please enter a path name', 'gatorcache');
+                    die('{"success":"0","error":' . json_encode($msg) . '}');
+                }
+                //if(!filter_var(get_option('siteurl') . ($dir = '/' . preg_replace('~\s+~', '-', $dir) . '/'), FILTER_VALIDATE_URL, FILTER_FLAG_PATH_REQUIRED)){}
+                $key = array_search($dir = '/' . preg_replace('~\s+~', '-', $dir) . '/', $options['exclude_paths']);
+                if('gci_xdir' === $_POST['action']){ 
+                    if(false !== $key){
+                        unset($options['exclude_paths'][$key]);
+                    }
+                }
+                else{
+                    if(false !== $key){
+                        $msg = __('This path is already excluded', 'gatorcache');
+                        die('{"success":"0","error":' . json_encode($msg) . '}');
+                    }
+                    $options['exclude_paths'][] = $dir;
+                }
+                $update = true;
+            break;
             case 'gci_del':
                 $result = GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray())->purge($opts['group']);
                 if(!$result){
@@ -350,7 +387,7 @@ class WpGatorCache
                 if($types !== $options['post_types'] || $app_support !== $options['app_support']){
                     $update = true;
                     $options['post_types'] = $types;
-                    $options['app_support'] = $app_support;
+                    $options['app_support'] = $app_support;//stores the registered post types
                 }
             break;
             case 'gci_dbg':
@@ -379,6 +416,9 @@ class WpGatorCache
                 $config->set($k, $v);
             }
             $config->write();
+        }
+        if('gci_dir' === $_POST['action']){//include payload
+            die('{"success":"1","xdir":' . json_encode($dir) . '}');
         }
         die('{"success":"1"}');
     }
@@ -536,6 +576,16 @@ class WpGatorCache
         return self::$options = GatorCache::getOptions(self::PREFIX . '_opts', self::$defaults)->toArray();
     }
 
+    protected static function hasPathExclusion($path){
+        foreach(self::$options['exclude_paths'] as $exPath){
+            if(strstr($path, $exPath)){
+                return true;
+                break;
+            }
+        }
+        return false;
+    }
+
     protected static function copyConfigFile($configDir){
         return false !== @copy(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.ini.php',  $configDir . 'gc-config.ini.php');
     }
@@ -577,13 +627,13 @@ class WpGatorCache
         return false;
     }
 
-    protected static function copyAdvCache(){
+    protected static function copyAdvCache($copy = true){
         $sourceFile = self::$path . 'lib' . DIRECTORY_SEPARATOR . 'advanced-cache.php';
         if(is_file($cacheFile = WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'advanced-cache.php')
           && md5_file($cacheFile) === md5_file($sourceFile)){
             return true;
         }
-        return false !== @copy($sourceFile, $cacheFile);
+        return $copy ? (false !== @copy($sourceFile, $cacheFile)) : false;
     }
 
     protected static function saveWpConfig($wp_cache = true){
@@ -671,6 +721,53 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
         global $woocommerce;
         return defined('WOOCOMMERCE_VERSION') && isset($woocommerce) && isset($woocommerce->cart) && 0 < $woocommerce->cart->cart_contents_count;
     }
+
+    protected static function verifyInstall(){
+        //check install flag
+        if(!self::$options['installed']){
+            return false;
+        }
+        //config file missing or corrupted
+        if(!is_file(self::$configPath) || false === ($config = GatorCache::getConfig(self::$configPath))){
+            $msg = __('Your Gator Cache configuration file is missing or corrupted.', 'gatorcache');
+            GatorCache::getNotices()->add($msg, '107');
+            self::disableCache(false);//requires reinstall
+            return false;
+        }
+        //cache directory is missing or set to the default
+        if('/tmp' === ($cacheDir = $config->get('cache_dir')) || !is_dir($cacheDir)){
+            $msg = __('Your Gator Cache directory is missing or no longer set.', 'gatorcache');
+            GatorCache::getNotices()->add($msg, '108');
+            self::disableCache();//requires reinstall
+            return false;
+        }
+        //check wp cache is set and the right adv cache is present
+        if((defined('WP_CACHE') && WP_CACHE) && self::copyAdvCache(false)){
+            return true;
+        }
+        //attempt to repair
+        if(!($wpCache = self::saveWpConfig()) || !self::copyAdvCache()){
+            if(!$wpCache){
+                $msg = __('Your Wordpress configuration file could not be updated.', 'gatorcache');
+                $code = '109';
+            }
+            else{
+                $msg = __('Your advanced cache file is missing or corrupted.', 'gatorcache');
+                $code = '110';
+            }
+            GatorCache::getNotices()->add($msg, $code);
+            self::disableCache();//requires reinstall
+            return false;//requires reinstall
+        }
+        return true;
+    }
+
+    protected static function disableCache($all = true){
+        GatorCache::getOptions(self::PREFIX . '_opts')->save('enabled', false);
+        if($all){
+            GatorCache::getConfig(self::$configPath)->save('enabled', false);
+        }
+    }
 }
 //Hooks
 register_activation_hook(__FILE__, 'WpGatorCache::Activate');
@@ -693,6 +790,8 @@ if(is_admin()){
     add_action('wp_ajax_gci_dbg', 'WpGatorCache::updateSettings');
     add_action('wp_ajax_gci_del', 'WpGatorCache::updateSettings');
     add_action('wp_ajax_gci_ref', 'WpGatorCache::updateSettings');
+    add_action('wp_ajax_gci_dir', 'WpGatorCache::updateSettings');
+    add_action('wp_ajax_gci_xdir', 'WpGatorCache::updateSettings');
     add_filter('whitelist_options', 'WpGatorCache::pingSetting');
     add_filter('redirect_post_location', 'WpGatorCache::savePostContext');
     add_filter('post_updated_messages', 'WpGatorCache::savePostMsg', 11);

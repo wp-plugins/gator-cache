@@ -25,6 +25,7 @@ class GatorCache
     protected static $request;
     protected static $config;
     protected static $options;
+    protected static $notices;
 
     public static function getCache(array $options = null){
         if(!isset(self::$cache)){
@@ -63,5 +64,14 @@ class GatorCache
             self::$options = new Config_Wp($key, $defaults);
         }
         return self::$options;
+    }
+
+    public static function getNotices(){
+        if(!isset(self::$notices)){
+            require_once(($dir = dirname(__FILE__)) . '/GatorNotice.php');
+            require_once($dir . '/Notice/GatorNoticeCollection.php');
+            self::$notices = new GatorNoticeCollection();
+        }
+        return self::$notices;
     }
 }

@@ -12,7 +12,7 @@ if('' === get_option('permalink_structure')){
 <?}?>
 <div class="wrap" id="gc_settings">
   <h2>Gator Cache <?php _e('Settings', 'gatorcache');?></h2>
-  <div id="gc_load" style="width:100%;display:block;margin:2em auto;text-align:center">
+  <div id="gc_load">
     <img src="<?php echo($loading);?>"/>
     <p>Loading Gator Cache Settings</p>
   </div>
@@ -21,14 +21,38 @@ if('' === get_option('permalink_structure')){
 <li><a href="#tabs-1"><?php _e('General Settings', 'gatorcache');?></a></li>
 <li><a href="#tabs-2"><?php _e('Post Types', 'gatorcache');?></a></li>
 <li><a href="#tabs-4"><?php _e('Users', 'gatorcache');?></a></li>
+<li><a href="#tabs-7"><?php _e('Custom', 'gatorcache');?></a></li>
 <li><a href="#tabs-6"><?php _e('Refresh Rules', 'gatorcache');?></a></li>
 <li><a href="#tabs-3"><?php _e('Debug', 'gatorcache');?></a></li>
 <li><a href="#tabs-5"><?php _e('Http', 'gatorcache');?></a></li>
 </ul>
+<div id="tabs-7">
+  <form id="gci_dir" method="post" action="">
+    <p class="bmpTxt"><?php _e('Custom Rules for caching:', 'gatorcache');?></strong></p>
+    <p class="result"></p>
+    <p>
+      <label for="ex_dir"><?php _e('Enter directory or page name to exclude:', 'gatorcache');?></label><br/>
+      <input style="margin-bottom:8px" type="text" name="ex_dir" id="ex_dir" value=""/>
+      <button class="button-primary"><?php _e('Save', 'gatorcache');?></button><br/>
+       <i class="fa fa-question-circle"></i> <?php printf(__('eg: excluding %s will exclude any url that contains %s', 'gatorcache'), '"dynamic-stuff"', '"/dynamic-stuff/"');?>  
+    </p>
+    <p class="bmpTxt"><?php _e('Excluded Directories and Page paths:', 'gatorcache');?></strong></p>
+    <p id="no_ex_dirs"<?php if(empty($options['exclude_paths'])){echo ' style="display:block"';}?>><?php _e('You have no excluded paths', 'gatorcache')?></p>
+<ol id="ex_cust" name="ex_cust">
+    <?php foreach($options['exclude_paths'] as $dir){?>
+      <li data-path="<?php echo $dir?>" class="ui-widget-content"><?php echo $dir?> <i class="fa fa-times-circle"></i></li>
+    <?php }?>
+</ol>
+  </form>
+<p><i class="fa fa-info-circle"></i> <?php _e('If you are running a plugin that is not cache friendly or there are certain directories or dynamic pages that should never be cached you may add those here and they will be excluded from your cache.', 'gatorcache');?></p>
+<?php if(defined('WOOCOMMERCE_VERSION')){?>
+  <p><i class="fa fa-info-circle"></i> <?php printf(__('You do not need to exclude %s cart, checkout or account paths. WooCommerce has built-in support for Wordpress page caching.', 'gatorcache'), '<em><strong>WooCommerce</strong></em>');?></p>
+<?php }?>
+</div>
 <div id="tabs-6">
   <form id="gci_ref" method="post" action="">
-    <p style="font-size:1.0625em"><?php _e('Automatic refresh rules for your cache when new posts are published:', 'gatorcache');?></strong></p>
-    <p class="result" style="display:none;color:forestgreen;font-weight:600"></p>
+    <p class="bmpTxt"><?php _e('Automatic refresh rules for your cache when posts are updated or new posts are published:', 'gatorcache');?></strong></p>
+    <p class="result"></p>
     <p>
       <input type="checkbox" name="rf_home" id="rf_home" value="1"<?php if($options['refresh']['home']){echo ' checked="checked"';}?>/> 
       <label for="rf_home"><?php _e('Refresh cached home page when new posts are published.', 'gatorcache');?></label> 
@@ -50,7 +74,7 @@ if('' === get_option('permalink_structure')){
   <form id="gci_http" method="post" action="">
     <p><?php _e('Recommended webserver rules for http caching.', 'gatorcache');?></p>
     <p>Apache*:</p>
-<textarea style="background:cyan;width:100%;" rows="35"># BEGIN Gator Cache
+<textarea rows="35"># BEGIN Gator Cache
 <?php 
 $groupDir = $config->get('group');
 if(!strstr($cacheDir = $config->get('cache_dir'), ABSPATH)){//cache dir is parallel to doc root, recommended
@@ -97,7 +121,7 @@ RewriteRule ^/?(.*)$ /gator_cache/$1index.html [L]
 </div>
 <div id="tabs-4">
   <form id="gci_usr" method="post" action="">
-    <p class="result" style="display:none;color:forestgreen;font-weight:600"></p>
+    <p class="result"></p>
     <p><?php _e('By default, cached pages are not served to logged-in Wordpress Users.', 'gatorcache');?></p>
     <p><label for="gci_roles"><?php _e('Cache Pages for the following Wordpress User Roles:', 'gatorcache');?></label></p>
     <p>
@@ -124,7 +148,7 @@ RewriteRule ^/?(.*)$ /gator_cache/$1index.html [L]
 </div>
 <div id="tabs-1">
 <form id="gci_gen" method="post" action="">
-  <p class="result" style="display:none;color:forestgreen;font-weight:600"></p>
+  <p class="result"></p>
   <p>
     <input type="checkbox" name="enabled" id="enabled" value="1"<?php if($options['enabled']){echo ' checked="checked"';}?>/> 
     <label for="enabled"><?php _e('Enable Page Cache', 'gatorcache');?></label> 
@@ -145,12 +169,13 @@ RewriteRule ^/?(.*)$ /gator_cache/$1index.html [L]
   </p>
   <p><button class="button-primary"><?php _e('Update', 'gatorcache');?></button></p>
   <p>*<?php printf(__('Since pages are automatically refreshed a relatively high or %s lifetime can be set.', 'gatorcache'), '<em>' . __('Infinite', 'gatorcache') . '</em>');?></p>
-  <p><?php _e('When new posts are published, your cached archive or category pages will be automatically refreshed.', 'gatorcache');?></p>
+  <p><i class="fa fa-info-circle"></i> <?php _e('When new posts are published, your cached archive or category pages will be automatically refreshed.', 'gatorcache');?></p>
+  <p><i class="fa fa-cog"></i> <em><strong>Gator Cache</strong></em> version <?php echo $options['version']?></p>
 </form>
 </div>
 <div id="tabs-2">
 <form id="gci_cpt" method="post" action="">
-  <p class="result" style="display:none;color:forestgreen;font-weight:600"></p>
+  <p class="result"></p>
   <p>
     <?php _e('By Default Gator Cache will cache your posts and pages', 'gatorcache');?>.
   </p>
@@ -187,13 +212,13 @@ if(empty($postTypes)){?>
 <?php }?>
   <p>*<?php _e('In addition to your regular Wordpress posts and pages, you may cache other post types as well, eg WooCommerce Products.', 'gatorcache');?></p>
 <?php if($isBbPress){?>
-  <p>**<?php printf(__('To cache %s pages, select Forums and Topics. They will always be fresh, since Gator Cache automatically refreshes when topics are added or replies are posted.', 'gatorcache'), '<em><strong>bbPress</strong></em>');?></p>
+  <p><i class="fa fa-info-circle"></i> <?php printf(__('To cache %s pages, select Forums and Topics. They will always be fresh, since Gator Cache automatically refreshes when topics are added or replies are posted.', 'gatorcache'), '<em><strong>bbPress</strong></em>');?></p>
 <?php }?>
 </form>
 </div>
 <div id="tabs-3">
 <form id="gci_dbg" method="post" action="">
-  <p class="result" style="display:none;color:forestgreen;font-weight:600"></p>
+  <p class="result"></p>
   <p>
     <?php _e('Include the cached date in your html source (does not show on web pages)', 'gatorcache');?>.
   </p>
@@ -201,8 +226,8 @@ if(empty($postTypes)){?>
   <p><button class="button-primary"><?php _e('Update', 'gatorcache');?></button></p>
 </form>
 <form id="gci_del" method="post" action="">
-  <p class="result" style="display:none;color:forestgreen;font-weight:600"></p>
-  <p><?php _e('Purge the entire cache. All cache files will be deleted.');?> <button class="button-secondary" style="margin-left:.5em"><?php _e('Purge', 'gatorcache');?></button></p>
+  <p class="result"></p>
+  <p><?php _e('Purge the entire cache. All cache files will be deleted.');?> <button class="button-secondary" style="margin-left:.5em"><i class="fa fa-refresh"></i> <?php _e('Purge', 'gatorcache');?></button></p>
 </form>
 <p><?php _e('Tech Support Forum:', 'gatorcache');?> <a href="http://gatordev.com/support/forum/gator-cache/" target="_blank">http://gatordev.com/support/forum/gator-cache/</a></p>
 <p><?php _e('Tech Support Information:', 'gatorcache');?>
@@ -211,7 +236,7 @@ if(empty($postTypes)){?>
 </div>
 <script type="text/javascript">
 (function($){
-    $('#gci_gen,#gci_usr,#gci_cpt,#gci_dbg,#gci_del,#gci_ref').submit(function(e){
+    $('#gci_gen,#gci_usr,#gci_cpt,#gci_dbg,#gci_del,#gci_ref,#gci_dir').submit(function(e){
         e.preventDefault();
         var res = $(this).find('.result'); 
         res.html('<img src="<?php echo $loading;?>"/>').show();
@@ -233,6 +258,11 @@ if(empty($postTypes)){?>
             }
             if('1' === data.success){
                 res.html('undefined' !== typeof(data.msg) ? data.msg : '<?php _e('Success: Your settings have been saved', 'gatorcache');?>');
+                if('undefined' !== typeof(data.xdir)){
+                    $('#no_ex_dirs').hide();
+                    $('#ex_dir').val('');
+                    $('#ex_cust').append('<li data-path="' + data.xdir + '" class="ui-widget-content">' + data.xdir + '<i class="fa fa-times-circle"></i></li>');
+                }
                 return;
             }
             res.html('undefined' === typeof(data.error) ? '<?php _e('Error Saving Settings', 'gatorcache');?>' : data.error);
@@ -242,10 +272,35 @@ if(empty($postTypes)){?>
         });
         return false;
     });
-
     $('gci_http').submit(function(e){
         e.preventDefault();
         return false;
+    });
+    $("#ex_cust").delegate("i.fa-times-circle", "click", function(e){
+        var res = $('#gci_dir').find('.result');
+        var btn = $('#gci_dir').find('button');
+        var li = $(this).parents('li');
+        btn.attr('disabled', true);
+        res.html('<img src="<?php echo $loading;?>"/>').show();
+        $.post(ajaxurl, {'action':'gci_xdir', 'ex_dir':li.data('path')}, function(data){
+            btn.attr('disabled', false);
+            if(null === data || 'undefined' === typeof(data.success)){
+                res.html('<?php _e('Unspecified Data Error', 'gatorcache');?>');
+                return;
+            }
+            if('1' === data.success){
+                res.html('undefined' !== typeof(data.msg) ? data.msg : '<?php _e('The selected path has been removed from exclusions', 'gatorcache');?>');
+                li.remove();
+                if(0 === $('#ex_cust > li').length){
+                    $('#no_ex_dirs').show();
+                }
+                return;
+            }
+            res.html('undefined' === typeof(data.error) ? '<?php _e('Error deleting exclusion path', 'gatorcache');?>' : data.error);
+        }, 'json').fail(function(xhr, textStatus, errorThrown){
+            res.html('<?php _e('Error: Unspecified network error.', 'gatorcache');?>');
+            btn.attr('disabled', false);
+        });
     });
 })(jQuery);
   </script>

@@ -1,6 +1,12 @@
 <?php if(!defined('ABSPATH') || !is_admin()){//no direct or frontend access
     exit;
-}?>
+}
+$notices = GatorCache::getNotices();
+if($notices->has()){?>
+  <div class="updated">
+    <p><strong><?_e('Error Code')?> <?php echo $notices->get()->getCode();?></strong>: <?php echo $notices->get()->getMessage();?> <strong><?_e('Re-installation Required')?></strong></p>
+  </div>
+<?php }?>
 <div class="wrap">
   <h2>Gator Cache <?php _e('Installation', 'gatorcache');?></h2>
   <h3><?php _e('Automated 2-step Gator Cache Install', 'gatorcache');?></h3>
