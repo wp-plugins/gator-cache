@@ -36,14 +36,14 @@ Gator Cache is easy to manage page cache for Wordpress. Once installed, it autom
 
 == Changelog ==
 
-= 1.0 =
-* Initial Release.
+= 1.2 =
+* Adds the ability to exclude custom directories and pages
+= 1.11 =
+* Maintenance release for 1.10
+* Fixes issue with cache serving
 = 1.1 =
 * Added support for bbPress
 * Enhanced content refresh
 * Performance optimizations
-= 1.11 =
-* Maintenance release for 1.10
-* Fixes issue with cache serving
-= 1.2 =
-* Adds the ability to exclude custom directories and pages
+= 1.0 =
+* Initial Release.
