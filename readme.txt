@@ -4,7 +4,7 @@ Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce
 Requires at least: 3.6
 Tested up to: 3.8.1
-Stable tag: 1.2
+Stable tag: 1.20
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,7 +36,7 @@ Gator Cache is easy to manage page cache for Wordpress. Once installed, it autom
 
 == Changelog ==
 
-= 1.2 =
+= 1.20 =
 * Adds the ability to exclude custom directories and pages
 = 1.11 =
 * Maintenance release for 1.10
