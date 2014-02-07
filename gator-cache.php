@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.31
+ * @version 1.32
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.31
+Version: 1.32
 */
 class WpGatorCache
 {
@@ -37,7 +37,7 @@ class WpGatorCache
     protected static $refresh = false;
     protected static $sslHandler;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.31';
+    const VERSION = '1.32';
 
     public static function initBuffer(){
         $options = self::getOptions();

@@ -9,7 +9,7 @@ if('' === get_option('permalink_structure')){
     <a href="<?php echo is_multisite() ? network_admin_url('options-permalink.php') : admin_url('options-permalink.php');?>" class="button-secondary">Repair</a>
   </p>
 </div>
-<?}?>
+<?php }?>
 <div class="wrap" id="gc_settings">
   <h2>Gator Cache <?php _e('Settings', 'gatorcache');?></h2>
   <div id="gc_load">
@@ -66,7 +66,7 @@ if('' === get_option('permalink_structure')){
       <input type="checkbox" name="rf_all" id="rf_all" value="1"<?php if($options['refresh']['all']){echo ' checked="checked"';}?>/> 
       <label for="rf_all"><?php _e('Refresh all pages. This is only necessary if your recent posts or custom posts, such as products, widget is on all pages.', 'gatorcache');?></label> 
     </p>
-<?}?>
+<?php }?>
     <p class="bmpTxt"><?php _e('SSL Settings:', 'gatorcache');?></strong></p>
     <p>
       <input type="checkbox" name="cache_ssl" id="cache_ssl" value="1"<?php if(!$options['skip_ssl']){echo ' checked="checked"';}?>/> 

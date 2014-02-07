@@ -4,7 +4,7 @@ Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce
 Requires at least: 3.6
 Tested up to: 3.8.1
-Stable tag: 1.31
+Stable tag: 1.32
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,6 +37,9 @@ Gator Cache is easy to manage page cache for Wordpress. Once installed, it autom
 
 == Changelog ==
 
+= 1.32 =
+* Maintenance release for 1.31
+* Replace php short tags which may cause fatal errors on some php configurations
 = 1.31 =
 * Adds support for caching SSL pages and the Wordpress HTTPS plugin
 = 1.20 =
