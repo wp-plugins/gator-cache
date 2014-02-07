@@ -25,7 +25,7 @@ class Cache_Wrapper
     protected $cache;
     protected $config = array(
         'lifetime' => 0, 'cache_dir' => '/tmp', 'enabled' => true,
-        'last_modified' => false, 'pingback' => false
+        'last_modified' => false, 'pingback' => false, 'skip_ssl' => true
     );
 
     public function __construct(array $config = null){

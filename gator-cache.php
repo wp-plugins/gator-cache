@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.20
+ * @version 1.31
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.20
+Version: 1.31
 */
 class WpGatorCache
 {
@@ -26,6 +26,7 @@ class WpGatorCache
         'roles' => array('subscriber'),
         'refresh' => array('home' => true, 'archive' => true, 'all' => false),
         'pingback' => false,
+        'skip_ssl' => true,
         'version' => false,
     );
 
@@ -34,8 +35,9 @@ class WpGatorCache
     protected static $configPath;
     protected static $post;
     protected static $refresh = false;
+    protected static $sslHandler;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.20';
+    const VERSION = '1.31';
 
     public static function initBuffer(){
         $options = self::getOptions();
@@ -48,12 +50,12 @@ class WpGatorCache
           || ('post' !== $post->post_type && 'page' !== $post->post_type && !in_array($post->post_type, $options['post_types']))
           || 'GET' !== $request->getMethod()
           || '' !== $request->getQueryString()
-          || $request->isSecure()
           || (defined('DOING_AJAX') && DOING_AJAX)
           || is_admin() || is_user_logged_in()
           || '' === get_option('permalink_structure')
           || self::hasPathExclusion($path)
-          || self::isWooCart()){
+          || self::isWooCart()
+          || ($request->isSecure() && ($options['skip_ssl'] || self::sslObHandlers()))){//obhandlers has to be last
               return;
         }
         //should be good to cache
@@ -70,10 +72,13 @@ class WpGatorCache
         }
         if($options['debug']){
             global $post;
-            $buffer .= "\n" . '<!-- Gator Cached ' . $post->post_type . ' on [' . date('r') . '] -->';
+            $buffer .= "\n" . '<!-- Gator Cached ' . $post->post_type . (isset(self::$sslHandler) ? ' via ' . self::$sslHandler : '') . ' on [' . date('r') . '] -->';
         }
         $cache = GatorCache::getCache($opts = $config->toArray());
         if(!$cache->has($path = GatorCache::getRequest()->getBasePath(), $opts['group'])){
+            if(isset(self::$sslHandler) && false !== ($replace = self::doHttpsHandler($buffer))){
+                $buffer = $replace;
+            }
             $result = $cache->save($path, $buffer, $opts['group']);//return $result;
         }
         return $buffer;
@@ -133,8 +138,14 @@ class WpGatorCache
                 $wpConfig->set('installed', self::$options['installed'] = false);
                 $wpConfig->set('enabled', self::$options['enabled'] = false);
             }
+            elseif(1.3 > $version){//add config option and advanced cache changed
+                GatorCache::getConfig(self::$configPath)->save('skip_ssl', true);
+                if(self::copyAdvCache()){
+                    $wpConfig->set('version', self::$options['version'] = self::VERSION);
+                }
+            }
             else{//store the version
-                $wpConfig->set('version', self::VERSION);
+                $wpConfig->set('version', self::$options['version'] = self::VERSION);
             }
             $wpConfig->write();
         }
@@ -202,7 +213,6 @@ class WpGatorCache
         if(!current_user_can('edit_posts')){
             die('0');
         }
-        self::killBuffers();
         $options = self::getOptions();
         if(!isset($_POST['gci_step']) || !ctype_digit($step = $_POST['gci_step'])){
             $step = '1';
@@ -210,11 +220,11 @@ class WpGatorCache
         if('2' === $step){
             if(!self::copyAdvCache()){
                 $error = __('Error [103]: could not copy advance cache php file, please copy manually', 'gatorcache');
-                die('{"success":"0","error":' . json_encode($error) . '}');
+                GatorCache::getJsonResponse()->setParam('error', $error)->send(); 
             }
             if(!self::saveWpConfig()){
                 $error = __('Error [104]: Could not write to your wordpress config file, please change permissions or manually insert WP_CACHE', 'gatorcache');
-                die('{"success":"0","error":' . json_encode($error) .'}');
+                GatorCache::getJsonResponse()->setParam('error', $error)->send(); 
             }
             //Installation complete
             $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
@@ -226,55 +236,54 @@ class WpGatorCache
             }
             $wpConfig->write();
             $msg = __('Gator Cache Successfully Installed', 'gatorcache');
-            die('{"success":"1","msg":' . json_encode($msg) . '}');
+            GatorCache::getJsonResponse()->setParam('msg', $msg)->send(true); 
         }
         if(is_dir($path = self::getInitDir(isset($_POST['ndoc_root']) && '1' === $_POST['ndoc_root']))){
             if(!@is_writable($path)){
                 $error = sprintf(__('Error [101]: Cache Directory [%s] is not writable, please change permissions.', 'gatorcache'), $path);
-                die('{"success":"0","error":' . json_encode() . '}');
+                GatorCache::getJsonResponse()->setParam('error', $error)->send();
             }
             $msg = __('Cache directory exists, proceeding to Step 2', 'gatorcache');
         }
         else{
             if(false === @mkdir($path, 0755)){
                 $error = __('Error [100]: Cache Directory could not be created', 'gatorcache');
-                die('{"success":"0","error":' . json_encode($error) . '}');
+                GatorCache::getJsonResponse()->setParam('error', $error)->send();
             }
             $msg = __('Cache directory created, proceeding to Step 2', 'gatorcache');
         }
         //get the group for subdir support or people that put blogs in the doc root
         if(false === ($url = parse_url($siteurl = get_option('siteurl')))){
             $error = sprintf(__('Error [105]: Could not parse site url setting [%s], please check Wordpress configuration.', 'gatorcache'), $siteurl);
-            die('{"success":"0","error":' . json_encode($error) . '}');
+            GatorCache::getJsonResponse()->setParam('error', $error)->send();
         }
         //new with ver 1.1, move config to cfg_dir
         if(!is_file(self::$configPath) && !self::copyConfigFile(ABSPATH)){
             $error = sprintf(__('Error [106]: Could not copy config file to your config directory [%s], please check permissions.', 'gatorcache'), ABSPATH);
-            die('{"success":"0","error":' . json_encode($error) . '}');
+            GatorCache::getJsonResponse()->setParam('error', $error)->send();
         }
         $group = str_replace('.', '-', $url['host']) . (empty($url['path']) || '/' === $url['path'] ? '' : str_replace('/', '-', $url['path']));
         if(!self::saveCachePath($path, $group)){
             $error = sprintf(__('Error [102]: Could not write to config file [%s], please check permissions.', 'gatorcache'), self::$configPath);
-            die('{"success":"0","error":' . json_encode($error) . '}');
+            GatorCache::getJsonResponse()->setParam('error', $error)->send();
         }
-        die('{"success":"1","msg":' . json_encode($msg) . '}');
+        GatorCache::getJsonResponse()->setParam('msg', $msg)->send(true);
     }
 
     public static function updateSettings(){
         if(!current_user_can('manage_options') || !isset($_POST['action'])){
             die();
         }
-        self::killBuffers();
         $options = self::getOptions();
         $update = false;
-        $cache = array('lifetime' => null, 'enabled' => null, 'skip_user' => null, 'debug' => null);
+        $cache = array('lifetime' => null, 'enabled' => null, 'skip_user' => null, 'debug' => null, 'skip_ssl' => null);
         switch($_POST['action']){
             case 'gci_dir':
             case 'gci_xdir':
                 if(empty($_POST['ex_dir']) || '' === ($dir = trim(wp_kses(stripslashes($_POST['ex_dir']), 'strip')))
                   || '' === $dir = trim(preg_replace('~^/+|/+$~', '', $dir))){
-                    $msg = __('Please enter a path name', 'gatorcache');
-                    die('{"success":"0","error":' . json_encode($msg) . '}');
+                    $error = __('Please enter a path name', 'gatorcache');
+                    GatorCache::getJsonResponse()->setParam('error', $error)->send();
                 }
                 //if(!filter_var(get_option('siteurl') . ($dir = '/' . preg_replace('~\s+~', '-', $dir) . '/'), FILTER_VALIDATE_URL, FILTER_FLAG_PATH_REQUIRED)){}
                 $key = array_search($dir = '/' . preg_replace('~\s+~', '-', $dir) . '/', $options['exclude_paths']);
@@ -285,8 +294,8 @@ class WpGatorCache
                 }
                 else{
                     if(false !== $key){
-                        $msg = __('This path is already excluded', 'gatorcache');
-                        die('{"success":"0","error":' . json_encode($msg) . '}');
+                        $error = __('This path is already excluded', 'gatorcache');
+                        GatorCache::getJsonResponse()->setParam('error', $error)->send();
                     }
                     $options['exclude_paths'][] = $dir;
                 }
@@ -295,11 +304,11 @@ class WpGatorCache
             case 'gci_del':
                 $result = GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray())->purge($opts['group']);
                 if(!$result){
-                    $msg = __('Cache could not be purged', 'gatorcache');
-                    die('{"success":"0","error":' . json_encode($msg) . '}');
+                    $error = __('Cache could not be purged', 'gatorcache');
+                    GatorCache::getJsonResponse()->setParam('error', $error)->send();
                 }
                 $msg = __('Cache successfully purged', 'gatorcache');
-                die('{"success":"1","msg":' . json_encode($msg) . '}');
+                GatorCache::getJsonResponse()->setParam('msg', $msg)->send(true);
             break;
             case 'gci_ref':
                 $refresh = array(
@@ -307,9 +316,11 @@ class WpGatorCache
                     'archive' => isset($_POST['rf_archive']) && '1' === $_POST['rf_archive'],
                     'all'     => isset($_POST['rf_all']) && '1' === $_POST['rf_all']
                 );
-                if($refresh !== $options['refresh']){
+                $skip_ssl = !isset($_POST['cache_ssl']) || '1' !== $_POST['cache_ssl'];
+                if($refresh !== $options['refresh'] || $skip_ssl !== $options['skip_ssl']){
                     $update = true;
                     $options['refresh'] = $refresh;
+                    $options['skip_ssl'] = $cache['skip_ssl'] = $skip_ssl;
                 }
             break;
             case 'gci_gen':
@@ -334,8 +345,8 @@ class WpGatorCache
             break;
             case 'gci_usr':
                 if(!isset($_POST['gci_roles'])){
-                    $msg = __('Roles not specified', 'gatorcache'); 
-                    die('{"success":"0","error":' . json_encode($msg) .'}');
+                    $error = __('Roles not specified', 'gatorcache'); 
+                    GatorCache::getJsonResponse()->setParam('error', $error)->send();
                 }
                 $roles = '' === $_POST['gci_roles'] ? array() : explode(',', $_POST['gci_roles']);
                 global $wp_roles;
@@ -356,8 +367,8 @@ class WpGatorCache
             break;
             case 'gci_cpt':
                 if(!isset($_POST['post_types'])){
-                    $msg = __('Post Types not specified', 'gatorcache'); 
-                    die('{"success":"0","error":' . json_encode($msg) .'}');
+                    $error = __('Post Types not specified', 'gatorcache'); 
+                    GatorCache::getJsonResponse()->setParam('error', $error)->send();
                 }
                 $types = '' === $_POST['post_types'] ? array() : explode(',', $_POST['post_types']);
                 $validTypes = get_post_types(array('public'   => true, '_builtin' => false));
@@ -398,8 +409,8 @@ class WpGatorCache
                 }
             break;
             default:
-                $msg = __('Invalid Action', 'gatorcache'); 
-                die('{"success":"0","error":' . json_encode($msg) .'}');
+                $error = __('Invalid Action', 'gatorcache'); 
+                GatorCache::getJsonResponse()->setParam('error', $error)->send();
             break;
         }
         
@@ -418,9 +429,9 @@ class WpGatorCache
             $config->write();
         }
         if('gci_dir' === $_POST['action']){//include payload
-            die('{"success":"1","xdir":' . json_encode($dir) . '}');
+            GatorCache::getJsonResponse()->setParam('xdir', $dir)->send(true);
         }
-        die('{"success":"1"}');
+        GatorCache::getJsonResponse()->send(true);
     }
 
 /**
@@ -692,12 +703,6 @@ class WpGatorCache
         return $hasRecent;
     }
 
-    protected static function killBuffers(){
-        for($ct = count(ob_list_handlers()),$xx=0;$xx<$ct;$xx++){
-            ob_end_clean();
-        }
-    }
-
     protected static function rangeSelect($min, $max, $sel){
         for($max++,$xx=$min;$xx<$max;$xx++){
             $opts[] = '<option value="' . $xx . '"' . ($xx == $sel ? ' selected="selected"' : '') . '>' . $xx . '</option>';
@@ -760,6 +765,43 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
             return false;//requires reinstall
         }
         return true;
+    }
+
+    protected static function sslObHandlers(){
+        $buffers = ob_list_handlers();
+        if(empty($buffers)){
+            return false;
+        }
+        for($pos = false, $ct = count($buffers), $xx=$ct-1;$xx>-1;$xx--){
+            if(0 === strpos($buffers[$xx], 'WordPressHTTPS')){//look for the https plugin ob handler
+                $pos = $xx;
+                self::$sslHandler = $buffers[$xx];
+                break;
+            }
+        }
+        if(false !== $pos){//kill the https cache buffer and whatever other ones are there on the way
+            for($num = $ct - $pos, $xx=0;$xx<$num;$xx++){
+                ob_end_clean();
+            }
+        }
+        return false;
+    }
+
+    protected static function doHttpsHandler($buffer){
+        global $wordpress_https;
+        //recent versions us a module
+        $module = false;
+        list($class, $method) = explode('::', self::$sslHandler);
+        if(strstr($class, 'Module_Parser')){
+            $module = $wordpress_https->getModule('Parser');
+        }
+        if(isset($wordpress_https) && isset($method) && method_exists(false === $module ? $wordpress_https : $module, $method)){
+            $out = false === $module ? $wordpress_https->{$method}($buffer) : $module->{$method}($buffer);//let WordPressHTTPS parse out theme developers src tag shananigans
+            if(!empty($out)){
+                return $out;
+            }
+        }
+        return false;
     }
 
     protected static function disableCache($all = true){
