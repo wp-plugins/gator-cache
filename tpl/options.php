@@ -9,7 +9,7 @@ if('' === get_option('permalink_structure')){
     <a href="<?php echo is_multisite() ? network_admin_url('options-permalink.php') : admin_url('options-permalink.php');?>" class="button-secondary">Repair</a>
   </p>
 </div>
-<?}?>
+<?php }?>
 <div class="wrap" id="gc_settings">
   <h2>Gator Cache <?php _e('Settings', 'gatorcache');?></h2>
   <div id="gc_load">
@@ -22,12 +22,12 @@ if('' === get_option('permalink_structure')){
 <li><a href="#tabs-2"><?php _e('Post Types', 'gatorcache');?></a></li>
 <li><a href="#tabs-4"><?php _e('Users', 'gatorcache');?></a></li>
 <li><a href="#tabs-7"><?php _e('Custom', 'gatorcache');?></a></li>
-<li><a href="#tabs-6"><?php _e('Refresh Rules', 'gatorcache');?></a></li>
+<li><a href="#tabs-6"><?php _e('Cache Rules', 'gatorcache');?></a></li>
 <li><a href="#tabs-3"><?php _e('Debug', 'gatorcache');?></a></li>
 <li><a href="#tabs-5"><?php _e('Http', 'gatorcache');?></a></li>
 </ul>
 <div id="tabs-7">
-  <form id="gci_dir" method="post" action="">
+  <form id="gci_dir" method="post" action="" autocomplete="off">
     <p class="bmpTxt"><?php _e('Custom Rules for caching:', 'gatorcache');?></strong></p>
     <p class="result"></p>
     <p>
@@ -50,28 +50,36 @@ if('' === get_option('permalink_structure')){
 <?php }?>
 </div>
 <div id="tabs-6">
-  <form id="gci_ref" method="post" action="">
-    <p class="bmpTxt"><?php _e('Automatic refresh rules for your cache when posts are updated or new posts are published:', 'gatorcache');?></strong></p>
+  <form id="gci_ref" method="post" action="" autocomplete="off">
+    <p class="bmpTxt"><?php _e('Automatic refresh rules for posts, pages and selected custom post types:', 'gatorcache');?></strong></p>
     <p class="result"></p>
     <p>
       <input type="checkbox" name="rf_home" id="rf_home" value="1"<?php if($options['refresh']['home']){echo ' checked="checked"';}?>/> 
-      <label for="rf_home"><?php _e('Refresh cached home page when new posts are published.', 'gatorcache');?></label> 
+      <label for="rf_home"><?php _e('Refresh cached home page when posts are updated or newly published.', 'gatorcache');?></label> 
     </p>
     <p>
       <input type="checkbox" name="rf_archive" id="rf_archive" value="1"<?php if($options['refresh']['archive']){echo ' checked="checked"';}?>/> 
-      <label for="rf_archive"><?php _e('Refresh archive pages, such as post category, when new posts in that category are published.', 'gatorcache');?></label> 
+      <label for="rf_archive"><?php _e('Refresh archive pages, such as post category, when new posts in that category are published or updated.', 'gatorcache');?></label> 
     </p>
 <?php if(self::hasRecentWidgets()){?>
     <p>
       <input type="checkbox" name="rf_all" id="rf_all" value="1"<?php if($options['refresh']['all']){echo ' checked="checked"';}?>/> 
       <label for="rf_all"><?php _e('Refresh all pages. This is only necessary if your recent posts or custom posts, such as products, widget is on all pages.', 'gatorcache');?></label> 
     </p>
-<?}?>
+<?php }?>
+    <p class="bmpTxt"><?php _e('SSL Settings:', 'gatorcache');?></strong></p>
+    <p>
+      <input type="checkbox" name="cache_ssl" id="cache_ssl" value="1"<?php if(!$options['skip_ssl']){echo ' checked="checked"';}?>/> 
+      <label for="cache_ssl"><?php _e('Cache secure SSL https protocol pages', 'gatorcache');?></label>
+    </p>
     <p><button class="button-primary"><?php _e('Update', 'gatorcache');?></button></p>
   </form>
+<?php if(is_plugin_active('wordpress-https/wordpress-https.php')){?>
+  <p><i class="fa fa-info-circle"></i> <?php printf(__('When SSL is enabled, Gator Cache is compatible with %s and will cache the pages it secures.', 'gatorcache'), '<em><strong>Wordpress HTTPS</strong></em>');?></p>
+<?php }?>
 </div>
 <div id="tabs-5">
-  <form id="gci_http" method="post" action="">
+  <form id="gci_http" method="post" action="" autocomplete="off">
     <p><?php _e('Recommended webserver rules for http caching.', 'gatorcache');?></p>
     <p>Apache*:</p>
 <textarea rows="35"># BEGIN Gator Cache
@@ -120,7 +128,7 @@ RewriteRule ^/?(.*)$ /gator_cache/$1index.html [L]
   </form>
 </div>
 <div id="tabs-4">
-  <form id="gci_usr" method="post" action="">
+  <form id="gci_usr" method="post" action="" autocomplete="off">
     <p class="result"></p>
     <p><?php _e('By default, cached pages are not served to logged-in Wordpress Users.', 'gatorcache');?></p>
     <p><label for="gci_roles"><?php _e('Cache Pages for the following Wordpress User Roles:', 'gatorcache');?></label></p>
@@ -147,7 +155,7 @@ RewriteRule ^/?(.*)$ /gator_cache/$1index.html [L]
   </form>
 </div>
 <div id="tabs-1">
-<form id="gci_gen" method="post" action="">
+<form id="gci_gen" method="post" action="" autocomplete="off">
   <p class="result"></p>
   <p>
     <input type="checkbox" name="enabled" id="enabled" value="1"<?php if($options['enabled']){echo ' checked="checked"';}?>/> 
@@ -174,7 +182,7 @@ RewriteRule ^/?(.*)$ /gator_cache/$1index.html [L]
 </form>
 </div>
 <div id="tabs-2">
-<form id="gci_cpt" method="post" action="">
+<form id="gci_cpt" method="post" action="" autocomplete="off">
   <p class="result"></p>
   <p>
     <?php _e('By Default Gator Cache will cache your posts and pages', 'gatorcache');?>.
@@ -217,7 +225,7 @@ if(empty($postTypes)){?>
 </form>
 </div>
 <div id="tabs-3">
-<form id="gci_dbg" method="post" action="">
+<form id="gci_dbg" method="post" action="" autocomplete="off">
   <p class="result"></p>
   <p>
     <?php _e('Include the cached date in your html source (does not show on web pages)', 'gatorcache');?>.
@@ -225,9 +233,9 @@ if(empty($postTypes)){?>
   <p><input type="checkbox" name="debug" id="debug" value="1"<?php if($options['debug']){echo ' checked="checked"';}?>/> <label for="debug"><?php _e('Add debug information', 'gatorcache');?></label>
   <p><button class="button-primary"><?php _e('Update', 'gatorcache');?></button></p>
 </form>
-<form id="gci_del" method="post" action="">
+<form id="gci_del" method="post" action="" autocomplete="off">
   <p class="result"></p>
-  <p><?php _e('Purge the entire cache. All cache files will be deleted.');?> <button class="button-secondary" style="margin-left:.5em"><i class="fa fa-refresh"></i> <?php _e('Purge', 'gatorcache');?></button></p>
+  <p><?php _e('Purge the entire cache. All cache files will be deleted.');?> <button class="button-secondary purge"><i class="fa fa-refresh"></i> <?php _e('Purge', 'gatorcache');?></button></p>
 </form>
 <p><?php _e('Tech Support Forum:', 'gatorcache');?> <a href="http://gatordev.com/support/forum/gator-cache/" target="_blank">http://gatordev.com/support/forum/gator-cache/</a></p>
 <p><?php _e('Tech Support Information:', 'gatorcache');?>

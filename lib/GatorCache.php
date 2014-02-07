@@ -47,13 +47,13 @@ class GatorCache
         if(!isset(self::$config)){
             require_once(dirname(__FILE__) . '/Config/Lite.php');
             try{
-                self::$config = new Config_Lite($path);
+                $config = new Config_Lite($path, array('cache_dir' => '/tmp'), $chkPath);
             } catch (Exception $e){
                 if($chkPath){
-                    unset(self::$config);
                     return false;
                 }
             }
+            self::$config = $config;
         }
         return self::$config;
     }
@@ -73,5 +73,10 @@ class GatorCache
             self::$notices = new GatorNoticeCollection();
         }
         return self::$notices;
+    }
+
+    public static function getJsonResponse(){
+        require_once(($dir = dirname(__FILE__)) . '/JqJsonResponse.php');
+        return new JqJsonResponse();
     }
 }

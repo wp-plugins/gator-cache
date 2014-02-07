@@ -4,7 +4,7 @@ Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce
 Requires at least: 3.6
 Tested up to: 3.8.1
-Stable tag: 1.20
+Stable tag: 1.32
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,6 +19,7 @@ Gator Cache is easy to manage page cache for Wordpress. Once installed, it autom
 *   Automatic update of cache when comments are approved
 *   Compatible with WooCommerce, will not cache mini-cart in page
 *   Compatible with bbPress, updates when topics, replies, etc are added
+*   Compatible with Wordpress HTTPS, will cache pages secured by the plugin when applicable
 *   Posts can be cached for logged-in Wordpress users by role. You can cache pages for Subscribers, Customers or other roles while skipping the cache for Administrators.
 *   Http caching supported with Apache and Nginx
 
@@ -36,6 +37,11 @@ Gator Cache is easy to manage page cache for Wordpress. Once installed, it autom
 
 == Changelog ==
 
+= 1.32 =
+* Maintenance release for 1.31
+* Replace php short tags which may cause fatal errors on some php configurations
+= 1.31 =
+* Adds support for caching SSL pages and the Wordpress HTTPS plugin
 = 1.20 =
 * Adds the ability to exclude custom directories and pages
 = 1.11 =

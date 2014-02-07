@@ -8,3 +8,4 @@ skip_user = 1
 last_modified = 0
 pingback = 0
 debug = 1
+skip_ssl = 1
