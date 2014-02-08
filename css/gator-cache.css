@@ -7,9 +7,11 @@
 #ex_cust .fa-times-circle {float:right;cursor:pointer;margin-top:2px}
 #ex_cust .button-primary {padding-left:5px}
 #gci_dir .button-primary i, #gci_dir .button-secondary i {margin-right:.25em}
-.fa-info-circle{color:green;margin-right:.125em}
-.fa-question-circle{color:#E67E00;margin-right:.125em}
+#gci_tabs .fa-info-circle{color:green;margin-right:.125em}
+#gci_tabs .fa-question-circle{color:#E67E00;margin-right:.125em}
+#gci_tabs .fa-exclamation-triangle{color:firebrick;margin-right:.125em}
 #no_ex_dirs{display:none}
 #ex_dir{width:300px}
 #gci_tabs .result{display:none;color:forestgreen;font-weight:600}
 #gci_tabs textarea{background:cyan;width:100%;}
+#gci_tabs .purge{margin:-.5em 0 0 .5em}
