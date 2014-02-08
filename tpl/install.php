@@ -4,7 +4,7 @@
 $notices = GatorCache::getNotices();
 if($notices->has()){?>
   <div class="updated">
-    <p><strong><?php _e('Error Code')?> <?php echo $notices->get()->getCode();?></strong>: <?php echo $notices->get()->getMessage();?> <strong><?_e('Re-installation Required')?></strong></p>
+    <p><strong><?php _e('Error Code')?> <?php echo $notices->get()->getCode();?></strong>: <?php echo $notices->get()->getMessage();?> <strong><?php _e('Re-installation Required')?></strong></p>
   </div>
 <?php }?>
 <div class="wrap">
