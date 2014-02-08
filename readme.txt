@@ -4,7 +4,7 @@ Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce
 Requires at least: 3.6
 Tested up to: 3.8.1
-Stable tag: 1.32
+Stable tag: 1.33
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,7 +12,7 @@ A better, stronger, faster page cache for Wordpress. Performance that's easy to 
 
 == Description ==
 
-Gator Cache is easy to manage page cache for Wordpress. Once installed, it automatically updates new and updated content in your cache. This keeps your website fresh while adding the superior performance advantage of a cache. Key features are as follows:
+Gator Cache is an easy to manage page cache for Wordpress. Once installed, it automatically updates new and updated content in your cache. This keeps your website fresh while adding the superior performance advantage of a cache. Key features are as follows:
 
 *   Greatly increases site performance by adding a page cache
 *   Automatic update of cache when content is published or updated
@@ -37,6 +37,9 @@ Gator Cache is easy to manage page cache for Wordpress. Once installed, it autom
 
 == Changelog ==
 
+= 1.33 =
+* Maintenance release
+* Improved support for post comments and http caching
 = 1.32 =
 * Maintenance release for 1.31
 * Replace php short tags which may cause fatal errors on some php configurations

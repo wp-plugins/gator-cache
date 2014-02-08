@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.32
+ * @version 1.33
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.32
+Version: 1.33
 */
 class WpGatorCache
 {
@@ -37,7 +37,7 @@ class WpGatorCache
     protected static $refresh = false;
     protected static $sslHandler;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.32';
+    const VERSION = '1.33';
 
     public static function initBuffer(){
         $options = self::getOptions();
@@ -55,6 +55,7 @@ class WpGatorCache
           || '' === get_option('permalink_structure')
           || self::hasPathExclusion($path)
           || self::isWooCart()
+          || isset($_COOKIE['comment_author_' . COOKIEHASH])
           || ($request->isSecure() && ($options['skip_ssl'] || self::sslObHandlers()))){//obhandlers has to be last
               return;
         }
@@ -72,7 +73,7 @@ class WpGatorCache
         }
         if($options['debug']){
             global $post;
-            $buffer .= "\n" . '<!-- Gator Cached ' . $post->post_type . (isset(self::$sslHandler) ? ' via ' . self::$sslHandler : '') . ' on [' . date('r') . '] -->';
+            $buffer .= "\n" . '<!-- Gator Cached ' . $post->post_type . (isset(self::$sslHandler) ? ' via ' . self::$sslHandler : '') . ' on [' . gmdate('Y-m-d H:i:s', time() + (get_option('gmt_offset') * 3600)) . '] -->';
         }
         $cache = GatorCache::getCache($opts = $config->toArray());
         if(!$cache->has($path = GatorCache::getRequest()->getBasePath(), $opts['group'])){
@@ -138,8 +139,10 @@ class WpGatorCache
                 $wpConfig->set('installed', self::$options['installed'] = false);
                 $wpConfig->set('enabled', self::$options['enabled'] = false);
             }
-            elseif(1.3 > $version){//add config option and advanced cache changed
-                GatorCache::getConfig(self::$configPath)->save('skip_ssl', true);
+            elseif(1.33 > $version){//add config option and advanced cache changed
+                if(1.3 > $version){//ssl flag
+                    GatorCache::getConfig(self::$configPath)->save('skip_ssl', true);
+                }
                 if(self::copyAdvCache()){
                     $wpConfig->set('version', self::$options['version'] = self::VERSION);
                 }
@@ -278,6 +281,13 @@ class WpGatorCache
         $update = false;
         $cache = array('lifetime' => null, 'enabled' => null, 'skip_user' => null, 'debug' => null, 'skip_ssl' => null);
         switch($_POST['action']){
+            case 'gci_mcd':
+                if(!self::moveCache()){
+                    $msg = __('Error [111]: Could not move your cache directory', 'gatorcache');
+                    GatorCache::getJsonResponse()->setParam('error', $msg)->send();
+                }
+                GatorCache::getJsonResponse()->send(true);
+            break;
             case 'gci_dir':
             case 'gci_xdir':
                 if(empty($_POST['ex_dir']) || '' === ($dir = trim(wp_kses(stripslashes($_POST['ex_dir']), 'strip')))
@@ -551,7 +561,7 @@ class WpGatorCache
     }
 
     public static function saveComment($new_status, $old_status, $comment){
-        if('approve' !== $new_status && 'approve' !== $old_status){//will not change page
+        if('approved' !== $new_status && 'approved' !== $old_status){//will not change page
             return;
         }
         if(null === ($path =  parse_url(get_permalink($comment->comment_post_ID), PHP_URL_PATH))){
@@ -561,6 +571,10 @@ class WpGatorCache
         GatorCache::getCache(
             $opts = GatorCache::getConfig(self::$configPath)->toArray()
         )->remove($path, $opts['group'], true);
+    }
+
+    public static function filterCookieLifetime($lifetime){
+        return 1800;//set to reasonable lifetime, 0 won't work for life of the browser session, see wp_set_comment_cookies
     }
 
     public static function loadTextDomain(){
@@ -810,6 +824,19 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
             GatorCache::getConfig(self::$configPath)->save('enabled', false);
         }
     }
+
+    protected static function moveCache($docRoot = true){
+        $config = GatorCache::getConfig(self::$configPath);
+        if(!is_dir($cacheDir = ABSPATH . 'gator_cache')){
+            if(!@rename($config->get('cache_dir'), $cacheDir)){
+                return false;
+            }
+        }
+        elseif(!is_writable($cacheDir)){
+                return false;
+        }
+        return $config->save('cache_dir', $cacheDir);
+    }
 }
 //Hooks
 register_activation_hook(__FILE__, 'WpGatorCache::Activate');
@@ -834,9 +861,11 @@ if(is_admin()){
     add_action('wp_ajax_gci_ref', 'WpGatorCache::updateSettings');
     add_action('wp_ajax_gci_dir', 'WpGatorCache::updateSettings');
     add_action('wp_ajax_gci_xdir', 'WpGatorCache::updateSettings');
+    add_action('wp_ajax_gci_mcd', 'WpGatorCache::updateSettings');
     add_filter('whitelist_options', 'WpGatorCache::pingSetting');
     add_filter('redirect_post_location', 'WpGatorCache::savePostContext');
     add_filter('post_updated_messages', 'WpGatorCache::savePostMsg', 11);
 }
 add_action('transition_post_status', 'WpGatorCache::savePost', 11111, 3);
 add_action('transition_comment_status', 'WpGatorCache::saveComment', 11, 3);
+add_filter('comment_cookie_lifetime', 'WpGatorCache::filterCookieLifetime', 11111);

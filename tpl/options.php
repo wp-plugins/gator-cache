@@ -81,50 +81,26 @@ if('' === get_option('permalink_structure')){
 <div id="tabs-5">
   <form id="gci_http" method="post" action="" autocomplete="off">
     <p><?php _e('Recommended webserver rules for http caching.', 'gatorcache');?></p>
-    <p>Apache*:</p>
-<textarea rows="35"># BEGIN Gator Cache
-<?php 
-$groupDir = $config->get('group');
-if(!strstr($cacheDir = $config->get('cache_dir'), ABSPATH)){//cache dir is parallel to doc root, recommended
-echo '# Important - Alias the cache directory
-Alias /gator_cache/ "' . $cacheDir . '/' . $groupDir . '/"
+    <p class="bmpTxt"><?php _e('Apache Rules:', 'gatorcache');?></p>
+    <?php $groupDir = $config->get('group');$warnLink = __('see below', 'gatorcache');
+if(!strstr($cacheDir = $config->get('cache_dir'), ABSPATH)){//cache dir is parallel to doc root, recommended?>
+<p><i class="fa fa-info-circle"></i> <?php _e('Add these rules to your apache virtual hosts config file.', 'gatorcache');?></p>
+<p><i class="fa fa-exclamation-triangle"></i> <?php _e('These rules will not work in your htaccess file.', 'gatorcache');?></p>
+<p><i class="fa fa-question-circle"></i> <?php printf(__('If you do not have access to your apache config, you can move your cache directory to support HTTP caching (%s).', 'gatorcache'), '<a href="#moveCache">' . $warnLink . '</a>');?></p>
+<textarea rows="36">
+# Important - Alias the cache directory
+<?php echo 'Alias /gator_cache/ "' . $cacheDir . '/' . $groupDir . '/"
 ';
-}?>
-<IfModule mod_mime.c>
-  <FilesMatch "\.gz$">
-    ForceType text/html
-  </FilesMatch>
-  FileETag None
-  AddEncoding gzip .gz
-  AddType text/html .gz
-  <filesMatch "\.(html|gz)$">
-    Header set Vary "Accept-Encoding, Cookie"
-    Header set Cache-Control "max-age=5, must-revalidate"
-  </filesMatch>
-</IfModule>
-Header unset Last-Modified
-# These browsers may be extinct
-BrowserMatch ^Mozilla/4 gzip-only-text/html
-BrowserMatch ^Mozilla/4\.0[678] no-gzip
-BrowserMatch \bMSIE !no-gzip !gzip-only-text/html
-# Assume mod_rewrite
-RewriteEngine On
-#Clients that support gzip
-RewriteCond %{HTTP:Cookie} !^.*wordpress_logged_in.*$
-RewriteCond %{HTTP:Accept-Encoding} gzip
-RewriteCond %{ENV:no-gzip} !1
-RewriteCond <?php echo $cacheDir . '/' . $groupDir;?>/%{REQUEST_URI} -d
-RewriteCond <?php echo $cacheDir . '/' . $groupDir;?>/%{REQUEST_URI}index.gz -f
-RewriteRule ^/?(.*)$ /gator_cache/$1index.gz [L,E=no-gzip:1]
-#Clients without gzip
-RewriteCond %{HTTP:Cookie} !^.*wordpress_logged_in.*$
-RewriteCond %{HTTP:Accept-Encoding} !gzip [OR]
-RewriteCond %{ENV:no-gzip} 1
-RewriteCond <?php echo $cacheDir . '/' . $groupDir;?>/%{REQUEST_URI}index.html -f
-RewriteRule ^/?(.*)$ /gator_cache/$1index.html [L]
-# END Gator Cache
+include self::$path . 'tpl' . DIRECTORY_SEPARATOR . 'http-rules.php';?>
 </textarea>
-<p>*<?php _e('Copy this block to the very top of your .htaccess above the Wordpress rules. Remove any other caching plugin rules.', 'gatorcache');?></p>
+    <p class="result"></p>
+    <p><?php _e('Move your cache to the website document root to support HTTP caching with htaccess:', 'gatorcache');?> <button id="cache_move" class="button-primary"><i class="fa fa-share"></i> Move Cache</button></p>
+    <a name="moveCache"></a>
+<?php }
+else{?>
+<p><i class="fa fa-info-circle"></i> <?php _e('Copy this block to the very top of your .htaccess above the Wordpress rules. Remove any other caching plugin rules.', 'gatorcache');?></p>
+<textarea rows="34"><?php include self::$path . 'tpl' . DIRECTORY_SEPARATOR . 'http-rules.php';?></textarea>
+<?php }?>
   </form>
 </div>
 <div id="tabs-4">
@@ -280,8 +256,37 @@ if(empty($postTypes)){?>
         });
         return false;
     });
-    $('gci_http').submit(function(e){
+    $('#gci_http').submit(function(e){
         e.preventDefault();
+        return false;
+    });
+    $('#cache_move').click(function(e){
+        var rusure = confirm("<?php _e('Are you sure you want to move your cache?', 'gatorcache');?>");
+        if(!rusure){
+            return false;
+        }
+        var res = $(this).parents('form').find('.result');
+        var btn = $(this);
+        btn.attr('disabled', true);
+        res.html('<img src="<?php echo $loading;?>"/>').show();
+        $.post(ajaxurl, {'action':'gci_mcd'}, function(data){
+            btn.attr('disabled', false);
+            if(null === data || 'undefined' === typeof(data.success)){
+                res.html('<?php _e('Unspecified Data Error', 'gatorcache');?>');
+                return;
+            }
+            if('1' === data.success){
+                res.html('undefined' !== typeof(data.msg) ? data.msg : '<?php _e('Cache successfully moved to document root, refreshing', 'gatorcache');?>');
+                window.setTimeout(function(){
+                        window.location.replace("<?php echo admin_url('admin.php?page=gtr_cache');?>");
+                    }, 1000);
+                return;
+            }
+            res.html('undefined' === typeof(data.error) ? '<?php _e('Error moving cache path', 'gatorcache');?>' : data.error);
+        }, 'json').fail(function(xhr, textStatus, errorThrown){
+            res.html('<?php _e('Error: Unspecified network error.', 'gatorcache');?>');
+            btn.attr('disabled', false);
+        });
         return false;
     });
     $("#ex_cust").delegate("i.fa-times-circle", "click", function(e){

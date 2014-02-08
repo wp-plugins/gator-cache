@@ -11,6 +11,9 @@ if(!defined('GC_CHK_USER') && $config->get('skip_user')){
             define('GC_CHK_USER', true);
             return;
         }
+        if(0 === strpos($cookies[$xx], 'comment_author')){
+            return;
+        }
     }
 }
 $request = GatorCache::getRequest();
