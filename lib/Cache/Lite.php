@@ -668,6 +668,7 @@ class Cache_Lite
     */
     function raiseError($msg, $code)
     {
+        return false;
         /*include_once('PEAR.php');
         return PEAR::raiseError($msg, $code, $this->_pearErrorMode);*/
         //throw new RuntimeException(sprintf('Error [%d]: %s', $code, $msg));
@@ -676,7 +677,7 @@ class Cache_Lite
         }
         return false;
     }
-    
+
     /**
      * Extend the life of a valid cache file
      * 

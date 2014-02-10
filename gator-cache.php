@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.20
+ * @version 1.41
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.20
+Version: 1.41
 */
 class WpGatorCache
 {
@@ -22,10 +22,12 @@ class WpGatorCache
         'lifetime' => array('value' => '2', 'unit' => 'week', 'sec' => 1209600),
         'post_types' => array('product'),
         'exclude_paths' => array(),
+        'refresh_paths' => array('all' => array()),
         'app_support' => array(),
         'roles' => array('subscriber'),
         'refresh' => array('home' => true, 'archive' => true, 'all' => false),
         'pingback' => false,
+        'skip_ssl' => true,
         'version' => false,
     );
 
@@ -34,8 +36,9 @@ class WpGatorCache
     protected static $configPath;
     protected static $post;
     protected static $refresh = false;
+    protected static $sslHandler;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.20';
+    const VERSION = '1.41';
 
     public static function initBuffer(){
         $options = self::getOptions();
@@ -45,15 +48,16 @@ class WpGatorCache
           || '.php' === substr($path = $request->getBasePath(), -4) //uri returns the whole qs
           || (defined('DONOTCACHEPAGE') && DONOTCACHEPAGE)
           || !isset($post)
-          || ('post' !== $post->post_type && 'page' !== $post->post_type && !in_array($post->post_type, $options['post_types']))
           || 'GET' !== $request->getMethod()
           || '' !== $request->getQueryString()
-          || $request->isSecure()
+          || ('post' !== $post->post_type && 'page' !== $post->post_type && !in_array($post->post_type, self::getCacheTypes()))
           || (defined('DOING_AJAX') && DOING_AJAX)
           || is_admin() || is_user_logged_in()
           || '' === get_option('permalink_structure')
           || self::hasPathExclusion($path)
-          || self::isWooCart()){
+          || self::isWooCart()
+          || isset($_COOKIE['comment_author_' . COOKIEHASH])
+          || ($request->isSecure() && ($options['skip_ssl'] || self::sslObHandlers()))){//obhandlers has to be last
               return;
         }
         //should be good to cache
@@ -70,10 +74,13 @@ class WpGatorCache
         }
         if($options['debug']){
             global $post;
-            $buffer .= "\n" . '<!-- Gator Cached ' . $post->post_type . ' on [' . date('r') . '] -->';
+            $buffer .= "\n" . '<!-- Gator Cached ' . $post->post_type . (isset(self::$sslHandler) ? ' via ' . self::$sslHandler : '') . ' on [' . gmdate('Y-m-d H:i:s', time() + (get_option('gmt_offset') * 3600)) . '] -->';
         }
         $cache = GatorCache::getCache($opts = $config->toArray());
         if(!$cache->has($path = GatorCache::getRequest()->getBasePath(), $opts['group'])){
+            if(isset(self::$sslHandler) && false !== ($replace = self::doHttpsHandler($buffer))){
+                $buffer = $replace;
+            }
             $result = $cache->save($path, $buffer, $opts['group']);//return $result;
         }
         return $buffer;
@@ -133,8 +140,29 @@ class WpGatorCache
                 $wpConfig->set('installed', self::$options['installed'] = false);
                 $wpConfig->set('enabled', self::$options['enabled'] = false);
             }
+            elseif(1.41 > $version){//add config option and advanced cache changed
+                if(1.3 > $version){//ssl flag
+                    GatorCache::getConfig(self::$configPath)->save('skip_ssl', true);
+                }
+                if(1.33 > $version && self::copyAdvCache()){
+                    $wpConfig->set('version', self::$options['version'] = self::VERSION);
+                }
+                if(1.41 > $version && isset($options['app_support']['bbpress']) && is_plugin_active('bbpress/bbpress.php')){//bbpress support changes
+                    if(false !== ($key = array_search(bbp_get_topic_post_type(), $options['post_types']))){
+                        unset($options['post_types'][$key]);
+                    }
+                    if(false !== ($key = array_search(bbp_get_forum_post_type(), $options['post_types']))){
+                        unset($options['post_types'][$key]);
+                    }
+                    if($options['post_types'] !== self::$options['post_types']){
+                        $options['post_types'][] = 'bbpress';
+                        $wpConfig->set('post_types', self::$options['post_types'] = $options['post_types']);
+                    }
+                    $wpConfig->set('version', self::$options['version'] = self::VERSION);
+                }
+            }
             else{//store the version
-                $wpConfig->set('version', self::VERSION);
+                $wpConfig->set('version', self::$options['version'] = self::VERSION);
             }
             $wpConfig->write();
         }
@@ -202,7 +230,6 @@ class WpGatorCache
         if(!current_user_can('edit_posts')){
             die('0');
         }
-        self::killBuffers();
         $options = self::getOptions();
         if(!isset($_POST['gci_step']) || !ctype_digit($step = $_POST['gci_step'])){
             $step = '1';
@@ -210,11 +237,11 @@ class WpGatorCache
         if('2' === $step){
             if(!self::copyAdvCache()){
                 $error = __('Error [103]: could not copy advance cache php file, please copy manually', 'gatorcache');
-                die('{"success":"0","error":' . json_encode($error) . '}');
+                GatorCache::getJsonResponse()->setParam('error', $error)->send(); 
             }
             if(!self::saveWpConfig()){
                 $error = __('Error [104]: Could not write to your wordpress config file, please change permissions or manually insert WP_CACHE', 'gatorcache');
-                die('{"success":"0","error":' . json_encode($error) .'}');
+                GatorCache::getJsonResponse()->setParam('error', $error)->send(); 
             }
             //Installation complete
             $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
@@ -226,67 +253,117 @@ class WpGatorCache
             }
             $wpConfig->write();
             $msg = __('Gator Cache Successfully Installed', 'gatorcache');
-            die('{"success":"1","msg":' . json_encode($msg) . '}');
+            GatorCache::getJsonResponse()->setParam('msg', $msg)->send(true); 
         }
         if(is_dir($path = self::getInitDir(isset($_POST['ndoc_root']) && '1' === $_POST['ndoc_root']))){
             if(!@is_writable($path)){
                 $error = sprintf(__('Error [101]: Cache Directory [%s] is not writable, please change permissions.', 'gatorcache'), $path);
-                die('{"success":"0","error":' . json_encode() . '}');
+                GatorCache::getJsonResponse()->setParam('error', $error)->send();
             }
             $msg = __('Cache directory exists, proceeding to Step 2', 'gatorcache');
         }
         else{
             if(false === @mkdir($path, 0755)){
                 $error = __('Error [100]: Cache Directory could not be created', 'gatorcache');
-                die('{"success":"0","error":' . json_encode($error) . '}');
+                GatorCache::getJsonResponse()->setParam('error', $error)->send();
             }
             $msg = __('Cache directory created, proceeding to Step 2', 'gatorcache');
         }
         //get the group for subdir support or people that put blogs in the doc root
         if(false === ($url = parse_url($siteurl = get_option('siteurl')))){
             $error = sprintf(__('Error [105]: Could not parse site url setting [%s], please check Wordpress configuration.', 'gatorcache'), $siteurl);
-            die('{"success":"0","error":' . json_encode($error) . '}');
+            GatorCache::getJsonResponse()->setParam('error', $error)->send();
         }
         //new with ver 1.1, move config to cfg_dir
         if(!is_file(self::$configPath) && !self::copyConfigFile(ABSPATH)){
             $error = sprintf(__('Error [106]: Could not copy config file to your config directory [%s], please check permissions.', 'gatorcache'), ABSPATH);
-            die('{"success":"0","error":' . json_encode($error) . '}');
+            GatorCache::getJsonResponse()->setParam('error', $error)->send();
         }
         $group = str_replace('.', '-', $url['host']) . (empty($url['path']) || '/' === $url['path'] ? '' : str_replace('/', '-', $url['path']));
         if(!self::saveCachePath($path, $group)){
             $error = sprintf(__('Error [102]: Could not write to config file [%s], please check permissions.', 'gatorcache'), self::$configPath);
-            die('{"success":"0","error":' . json_encode($error) . '}');
+            GatorCache::getJsonResponse()->setParam('error', $error)->send();
         }
-        die('{"success":"1","msg":' . json_encode($msg) . '}');
+        GatorCache::getJsonResponse()->setParam('msg', $msg)->send(true);
     }
 
     public static function updateSettings(){
         if(!current_user_can('manage_options') || !isset($_POST['action'])){
             die();
         }
-        self::killBuffers();
         $options = self::getOptions();
         $update = false;
-        $cache = array('lifetime' => null, 'enabled' => null, 'skip_user' => null, 'debug' => null);
+        $cache = array('lifetime' => null, 'enabled' => null, 'skip_user' => null, 'debug' => null, 'skip_ssl' => null);
         switch($_POST['action']){
+            case 'gci_crf':
+            case 'gci_xrf':
+                if(empty($_POST['rf_dir']) || '' === ($dir = trim(wp_kses(stripslashes($_POST['rf_dir']), 'strip')))
+                  || '' === $dir = trim(preg_replace('~^/+|/+$~', '', $dir))){
+                    $error = __('Please enter a path name', 'gatorcache');
+                    GatorCache::getJsonResponse()->setParam('error', $error)->send();
+                }
+                $validTypes = get_post_types(array('public'   => true, '_builtin' => false));
+                if('gci_crf' ===$_POST['action'] && (empty($_POST['rf_type']) || ('all' !== ($type = $_POST['rf_type']) && 'bbpress' !== $type && !isset($validTypes[$type])))){
+                    $error = __('Please enter a post type', 'gatorcache');
+                    GatorCache::getJsonResponse()->setParam('error', $error)->send();
+                }
+                $dir = '/' . preg_replace('~\s+~', '-', $dir) . '/';
+                $dirKey = false;
+                foreach($options['refresh_paths'] as $typeKey => $paths){
+                    if(false !== ($dirKey = array_search($dir, $paths))){
+                        break;
+                    }
+                }
+                if('gci_xrf' === $_POST['action']){
+                    if(false !== $dirKey){
+                        unset($options['refresh_paths'][$typeKey][$dirKey]);
+                        if('all' !== $typeKey && empty($options['refresh_paths'][$typeKey])){
+                            unset($options['refresh_paths'][$typeKey]);
+                        }
+                    }
+                }
+                else{
+                    if(false !== $dirKey){
+                        $error = __('This path is already added to refresh rules', 'gatorcache');
+                        GatorCache::getJsonResponse()->setParam('error', $error)->send();
+                    }
+                    if(isset($options['refresh_paths'][$type])){
+                        $options['refresh_paths'][$type][] = $dir;
+                    }
+                    else{
+                        $options['refresh_paths'][$type] = array($dir);
+                    }
+                    if('bbpress' === $type && !isset($options['app_support']['bbpress'])){
+                        $options['app_support']['bbpress'] = self::getBbPressSupport();
+                    }
+                }
+                $update = true;
+            break;
+            case 'gci_mcd':
+                if(!self::moveCache()){
+                    $msg = __('Error [111]: Could not move your cache directory', 'gatorcache');
+                    GatorCache::getJsonResponse()->setParam('error', $msg)->send();
+                }
+                GatorCache::getJsonResponse()->send(true);
+            break;
             case 'gci_dir':
-            case 'gci_xdir':
+            case 'gci_xex':
                 if(empty($_POST['ex_dir']) || '' === ($dir = trim(wp_kses(stripslashes($_POST['ex_dir']), 'strip')))
                   || '' === $dir = trim(preg_replace('~^/+|/+$~', '', $dir))){
-                    $msg = __('Please enter a path name', 'gatorcache');
-                    die('{"success":"0","error":' . json_encode($msg) . '}');
+                    $error = __('Please enter a path name', 'gatorcache');
+                    GatorCache::getJsonResponse()->setParam('error', $error)->send();
                 }
                 //if(!filter_var(get_option('siteurl') . ($dir = '/' . preg_replace('~\s+~', '-', $dir) . '/'), FILTER_VALIDATE_URL, FILTER_FLAG_PATH_REQUIRED)){}
                 $key = array_search($dir = '/' . preg_replace('~\s+~', '-', $dir) . '/', $options['exclude_paths']);
-                if('gci_xdir' === $_POST['action']){ 
+                if('gci_xex' === $_POST['action']){ 
                     if(false !== $key){
                         unset($options['exclude_paths'][$key]);
                     }
                 }
                 else{
                     if(false !== $key){
-                        $msg = __('This path is already excluded', 'gatorcache');
-                        die('{"success":"0","error":' . json_encode($msg) . '}');
+                        $error = __('This path is already excluded', 'gatorcache');
+                        GatorCache::getJsonResponse()->setParam('error', $error)->send();
                     }
                     $options['exclude_paths'][] = $dir;
                 }
@@ -295,11 +372,11 @@ class WpGatorCache
             case 'gci_del':
                 $result = GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray())->purge($opts['group']);
                 if(!$result){
-                    $msg = __('Cache could not be purged', 'gatorcache');
-                    die('{"success":"0","error":' . json_encode($msg) . '}');
+                    $error = __('Cache could not be purged', 'gatorcache');
+                    GatorCache::getJsonResponse()->setParam('error', $error)->send();
                 }
                 $msg = __('Cache successfully purged', 'gatorcache');
-                die('{"success":"1","msg":' . json_encode($msg) . '}');
+                GatorCache::getJsonResponse()->setParam('msg', $msg)->send(true);
             break;
             case 'gci_ref':
                 $refresh = array(
@@ -307,9 +384,11 @@ class WpGatorCache
                     'archive' => isset($_POST['rf_archive']) && '1' === $_POST['rf_archive'],
                     'all'     => isset($_POST['rf_all']) && '1' === $_POST['rf_all']
                 );
-                if($refresh !== $options['refresh']){
+                $skip_ssl = !isset($_POST['cache_ssl']) || '1' !== $_POST['cache_ssl'];
+                if($refresh !== $options['refresh'] || $skip_ssl !== $options['skip_ssl']){
                     $update = true;
                     $options['refresh'] = $refresh;
+                    $options['skip_ssl'] = $cache['skip_ssl'] = $skip_ssl;
                 }
             break;
             case 'gci_gen':
@@ -334,8 +413,8 @@ class WpGatorCache
             break;
             case 'gci_usr':
                 if(!isset($_POST['gci_roles'])){
-                    $msg = __('Roles not specified', 'gatorcache'); 
-                    die('{"success":"0","error":' . json_encode($msg) .'}');
+                    $error = __('Roles not specified', 'gatorcache'); 
+                    GatorCache::getJsonResponse()->setParam('error', $error)->send();
                 }
                 $roles = '' === $_POST['gci_roles'] ? array() : explode(',', $_POST['gci_roles']);
                 global $wp_roles;
@@ -356,38 +435,25 @@ class WpGatorCache
             break;
             case 'gci_cpt':
                 if(!isset($_POST['post_types'])){
-                    $msg = __('Post Types not specified', 'gatorcache'); 
-                    die('{"success":"0","error":' . json_encode($msg) .'}');
+                    $error = __('Post Types not specified', 'gatorcache'); 
+                    GatorCache::getJsonResponse()->setParam('error', $error)->send();
                 }
                 $types = '' === $_POST['post_types'] ? array() : explode(',', $_POST['post_types']);
                 $validTypes = get_post_types(array('public'   => true, '_builtin' => false));
-                $isForum = false;
-                $bbpTypes = array();
-                if(is_plugin_active('bbpress/bbpress.php')){
-                    $bbpTypes[bbp_get_reply_post_type()] = true;
-                    $bbpTypes[bbp_get_topic_post_type()] = true;
-                    $bbpTypes[bbp_get_forum_post_type()] = true;
-                }
                 foreach($types as $key => $type){//for php 5.2 compat array filter not used here
-                    if(!isset($validTypes[$type])){
+                    if('bbpress' === $type){
+                        if(false !== ($app_support = self::getBbPressSupport())){//!isset($options['app_support']['bbpress'])
+                            $options['app_support']['bbpress'] = $app_support;
+                            $update = true;
+                        }
+                    }
+                    elseif(!isset($validTypes[$type])){
                         unset($types[$key]);
-                        continue;
-                    }
-                    if(isset($bbpTypes[$type])){
-                        $isForum = true;
                     }
                 }
-                $app_support = $options['app_support'];
-                if($isForum){//add BBPress support
-                    $app_support['bbpress'] = $bbpTypes;
-                }
-                elseif(isset($app_support['bbpress'])){
-                    unset($app_support['bbpress']);
-                }
-                if($types !== $options['post_types'] || $app_support !== $options['app_support']){
+                if($types !== $options['post_types']){
                     $update = true;
                     $options['post_types'] = $types;
-                    $options['app_support'] = $app_support;//stores the registered post types
                 }
             break;
             case 'gci_dbg':
@@ -398,8 +464,8 @@ class WpGatorCache
                 }
             break;
             default:
-                $msg = __('Invalid Action', 'gatorcache'); 
-                die('{"success":"0","error":' . json_encode($msg) .'}');
+                $error = __('Invalid Action', 'gatorcache'); 
+                GatorCache::getJsonResponse()->setParam('error', $error)->send();
             break;
         }
         
@@ -417,10 +483,13 @@ class WpGatorCache
             }
             $config->write();
         }
-        if('gci_dir' === $_POST['action']){//include payload
-            die('{"success":"1","xdir":' . json_encode($dir) . '}');
+        if('gci_dir' === $_POST['action']){//include payload for added custom dirs
+            GatorCache::getJsonResponse()->setParam('xdir', $dir)->send(true);
         }
-        die('{"success":"1"}');
+        if('gci_crf' === $_POST['action']){//include payload for added custom dirs
+            GatorCache::getJsonResponse()->setParam('xdir', $dir)->setParam('xtype', $type)->send(true);
+        }
+        GatorCache::getJsonResponse()->send(true);
     }
 
 /**
@@ -437,7 +506,7 @@ class WpGatorCache
         }
         $options = self::getOptions();
         $postTypes = array('post' => 0, 'page' => 0) + array_flip($options['post_types']);
-        if(isset($options['app_support']['bbpress'])){//bbpress supported - perform ops on child types
+        if((isset($postTypes['bbpress']) || isset($options['refresh_paths']['bbpress'])) && isset($options['app_support']['bbpress'])){//bbpress supported - perform ops on child types
             $postTypes = $options['app_support']['bbpress'] + $postTypes;
         }
         if(!$options['enabled'] || self::VERSION !== $options['version'] || !isset($postTypes[$post->post_type])){
@@ -460,7 +529,26 @@ class WpGatorCache
         }
         //refresh home page
         if($options['refresh']['home']){//refresh the home page
-            $cache->remove(DIRECTORY_SEPARATOR, $opts['group']);
+            $options['refresh_paths']['all'][] = DIRECTORY_SEPARATOR;
+        }
+        //refresh custom paths
+        if(!empty($options['refresh_paths'])){
+            if(!empty($options['refresh_paths']['all'])){
+                foreach($options['refresh_paths']['all'] as $refreshPath){
+                    $cache->remove($refreshPath, $opts['group']);
+                }
+            }
+            if(isset($options['app_support']['bbpress']) && !empty($options['refresh_paths']['bbpress']) 
+              && isset($options['app_support']['bbpress'][$post->post_type])){
+                foreach($options['refresh_paths']['bbpress'] as $refreshPath){
+                    $cache->remove($refreshPath, $opts['group']);
+                }
+            }
+            if(!empty($options['refresh_paths'][$post->post_type])){
+                foreach($options['refresh_paths'][$post->post_type] as $refreshPath){
+                    $cache->remove($refreshPath, $opts['group']);
+                }
+            }
         }
         //refresh archive pages for this post or the last parent
         if(!$options['refresh']['archive']){
@@ -540,7 +628,7 @@ class WpGatorCache
     }
 
     public static function saveComment($new_status, $old_status, $comment){
-        if('approve' !== $new_status && 'approve' !== $old_status){//will not change page
+        if('approved' !== $new_status && 'approved' !== $old_status){//will not change page
             return;
         }
         if(null === ($path =  parse_url(get_permalink($comment->comment_post_ID), PHP_URL_PATH))){
@@ -550,6 +638,10 @@ class WpGatorCache
         GatorCache::getCache(
             $opts = GatorCache::getConfig(self::$configPath)->toArray()
         )->remove($path, $opts['group'], true);
+    }
+
+    public static function filterCookieLifetime($lifetime){
+        return 1800;//set to reasonable lifetime, 0 won't work for life of the browser session, see wp_set_comment_cookies
     }
 
     public static function loadTextDomain(){
@@ -604,7 +696,9 @@ class WpGatorCache
         if(!$isNew){
             $ids[] = $post->ID;
         }
-        if(isset(self::$options['app_support']['bbpress']) && isset(self::$options['app_support']['bbpress'][$post->post_type])){//get bbpress parent posts
+        if(isset(self::$options['app_support']['bbpress'])
+          && isset(self::$options['app_support']['bbpress'][$post->post_type])
+          && in_array('bbpress', self::$options['post_types'])){//get bbpress parent posts
             self::$post = $post;//seeder
             for($xx=0;$xx<25;$xx++){
                 if(false === $id = self::getParentPost(self::$post)){
@@ -625,6 +719,15 @@ class WpGatorCache
             return self::$post->ID;
         }
         return false;
+    }
+
+    protected static function getCacheTypes(){
+        if(!isset(self::$options['app_support']['bbpress']) || !in_array('bbpress', self::$options['post_types'])){
+            return self::$options['post_types'];
+        }
+        $options = self::$options;
+        array_shift($options['app_support']['bbpress']);//exclude reply
+        return array_merge($options['post_types'], array_keys($options['app_support']['bbpress']));
     }
 
     protected static function copyAdvCache($copy = true){
@@ -692,12 +795,6 @@ class WpGatorCache
         return $hasRecent;
     }
 
-    protected static function killBuffers(){
-        for($ct = count(ob_list_handlers()),$xx=0;$xx<$ct;$xx++){
-            ob_end_clean();
-        }
-    }
-
     protected static function rangeSelect($min, $max, $sel){
         for($max++,$xx=$min;$xx<$max;$xx++){
             $opts[] = '<option value="' . $xx . '"' . ($xx == $sel ? ' selected="selected"' : '') . '>' . $xx . '</option>';
@@ -715,6 +812,17 @@ Web User: ' . get_current_user() . '
 Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.ini.php') ? 'Yes' : 'No') . '
 </textarea>';
         //Path: ' . $path; echo var_export($options);echo var_export($config->toArray());
+    }
+
+    protected static function getBbPressSupport(){
+        if(is_plugin_active('bbpress/bbpress.php')){
+            $app_support = array();
+            $app_support[bbp_get_reply_post_type()] = true;
+            $app_support[bbp_get_topic_post_type()] = true;
+            $app_support[bbp_get_forum_post_type()] = true;
+            return $app_support;
+        }
+        return false;
     }
 
     protected static function isWooCart(){//don't cache the mini-cart, lots of themes php code it
@@ -762,11 +870,61 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
         return true;
     }
 
+    protected static function sslObHandlers(){
+        $buffers = ob_list_handlers();
+        if(empty($buffers)){
+            return false;
+        }
+        for($pos = false, $ct = count($buffers), $xx=$ct-1;$xx>-1;$xx--){
+            if(0 === strpos($buffers[$xx], 'WordPressHTTPS')){//look for the https plugin ob handler
+                $pos = $xx;
+                self::$sslHandler = $buffers[$xx];
+                break;
+            }
+        }
+        if(false !== $pos){//kill the https cache buffer and whatever other ones are there on the way
+            for($num = $ct - $pos, $xx=0;$xx<$num;$xx++){
+                ob_end_clean();
+            }
+        }
+        return false;
+    }
+
+    protected static function doHttpsHandler($buffer){
+        global $wordpress_https;
+        //recent versions us a module
+        $module = false;
+        list($class, $method) = explode('::', self::$sslHandler);
+        if(strstr($class, 'Module_Parser')){
+            $module = $wordpress_https->getModule('Parser');
+        }
+        if(isset($wordpress_https) && isset($method) && method_exists(false === $module ? $wordpress_https : $module, $method)){
+            $out = false === $module ? $wordpress_https->{$method}($buffer) : $module->{$method}($buffer);//let WordPressHTTPS parse out theme developers src tag shananigans
+            if(!empty($out)){
+                return $out;
+            }
+        }
+        return false;
+    }
+
     protected static function disableCache($all = true){
         GatorCache::getOptions(self::PREFIX . '_opts')->save('enabled', false);
         if($all){
             GatorCache::getConfig(self::$configPath)->save('enabled', false);
         }
+    }
+
+    protected static function moveCache($docRoot = true){
+        $config = GatorCache::getConfig(self::$configPath);
+        if(!is_dir($cacheDir = ABSPATH . 'gator_cache')){
+            if(!@rename($config->get('cache_dir'), $cacheDir)){
+                return false;
+            }
+        }
+        elseif(!is_writable($cacheDir)){
+                return false;
+        }
+        return $config->save('cache_dir', $cacheDir);
     }
 }
 //Hooks
@@ -791,10 +949,14 @@ if(is_admin()){
     add_action('wp_ajax_gci_del', 'WpGatorCache::updateSettings');
     add_action('wp_ajax_gci_ref', 'WpGatorCache::updateSettings');
     add_action('wp_ajax_gci_dir', 'WpGatorCache::updateSettings');
-    add_action('wp_ajax_gci_xdir', 'WpGatorCache::updateSettings');
+    add_action('wp_ajax_gci_xex', 'WpGatorCache::updateSettings');
+    add_action('wp_ajax_gci_mcd', 'WpGatorCache::updateSettings');
+    add_action('wp_ajax_gci_crf', 'WpGatorCache::updateSettings');
+    add_action('wp_ajax_gci_xrf', 'WpGatorCache::updateSettings');
     add_filter('whitelist_options', 'WpGatorCache::pingSetting');
     add_filter('redirect_post_location', 'WpGatorCache::savePostContext');
     add_filter('post_updated_messages', 'WpGatorCache::savePostMsg', 11);
 }
 add_action('transition_post_status', 'WpGatorCache::savePost', 11111, 3);
 add_action('transition_comment_status', 'WpGatorCache::saveComment', 11, 3);
+add_filter('comment_cookie_lifetime', 'WpGatorCache::filterCookieLifetime', 11111);

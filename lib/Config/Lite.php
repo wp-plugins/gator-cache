@@ -25,12 +25,15 @@ class Config_Lite
     protected $config = array();
     protected $path;
 
-    public function __construct($path, $default = null){
+    public function __construct($path, $default = null, $verify = false){
         if(false === ($config = @parse_ini_file($this->path = $path))){
             if(isset($default)){
                 $this->config = $default;
             }
-            throw new InvalidArgumentException(sprintf('Unable to parse config ini file [%s]', $path));
+            $this->path = null;
+            if($verify){//unfortunately if you throw an exception in the constructor the class won't load
+                throw new InvalidArgumentException(sprintf('Unable to parse config ini file [%s]', $path));
+            }
         }
         else{
             $this->config = $config;
@@ -50,9 +53,12 @@ class Config_Lite
     }
 
     public function write($path = null){
+        if(!($usePath = isset($path)) && !isset($this->path)){//fubar
+            return false;
+        }
         $this->out = array('<?php exit;?>');
         $this->format($this->config);
-        $fp = @fopen(isset($path) ? $path : $this->path, 'w');
+        $fp = @fopen($usePath ? $path : $this->path, 'w');
         if($fp){
             @flock($fp, LOCK_EX);
             @fwrite($fp, implode("\n", $this->out));
