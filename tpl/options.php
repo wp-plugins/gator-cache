@@ -9,7 +9,23 @@ if('' === get_option('permalink_structure')){
     <a href="<?php echo is_multisite() ? network_admin_url('options-permalink.php') : admin_url('options-permalink.php');?>" class="button-secondary">Repair</a>
   </p>
 </div>
-<?php }?>
+<?php }
+$postTypes = get_post_types(array('public'   => true, '_builtin' => false), 'objects');
+if($isBbPress = is_plugin_active('bbpress/bbpress.php')){//it's bbpress Jim
+    unset($postTypes[bbp_get_reply_post_type()]);//reply won't have a permalink
+    unset($postTypes[bbp_get_topic_post_type()]);
+    unset($postTypes[bbp_get_forum_post_type()]);
+    $postTypes['bbpress'] = new StdClass();//virtual post type
+    $postTypes['bbpress']->name = 'bbpress';
+    $postTypes['bbpress']->label = 'bbPress';
+}
+if(defined('WOOCOMMERCE_VERSION')){//woocommerce
+    unset($postTypes['product_variation'], $postTypes['shop_coupon']);
+}
+if(isset($postTypes['wooframework'])){//woothemes
+    unset($postTypes['wooframework']);
+}
+?>
 <div class="wrap" id="gc_settings">
   <h2>Gator Cache <?php _e('Settings', 'gatorcache');?></h2>
   <div id="gc_load">
@@ -28,7 +44,7 @@ if('' === get_option('permalink_structure')){
 </ul>
 <div id="tabs-7">
   <form id="gci_dir" method="post" action="" autocomplete="off">
-    <p class="bmpTxt"><?php _e('Custom Rules for caching:', 'gatorcache');?></strong></p>
+    <p class="bmpTxt"><?php _e('Custom Rules for cache exclusion:', 'gatorcache');?></strong></p>
     <p class="result"></p>
     <p>
       <label for="ex_dir"><?php _e('Enter directory or page name to exclude:', 'gatorcache');?></label><br/>
@@ -73,6 +89,37 @@ if('' === get_option('permalink_structure')){
       <label for="cache_ssl"><?php _e('Cache secure SSL https protocol pages', 'gatorcache');?></label>
     </p>
     <p><button class="button-primary"><?php _e('Update', 'gatorcache');?></button></p>
+  </form>
+<hr/>
+<form id="gci_crf" method="post" action="" autocomplete="off">
+    <p class="bmpTxt"><?php _e('Custom Refresh Rules:', 'gatorcache');?></strong></p>
+    <p class="result"></p>
+    <p>
+      <label for="rf_dir"><?php _e('Enter directory or page name to refresh on updates:', 'gatorcache');?></label><br/>
+      <input style="margin-bottom:8px" type="text" name="rf_dir" id="rf_dir" value=""/>
+<?php 
+//var_dump($postTypes);
+if(!empty($postTypes)){?>
+      <select name="rf_type">
+        <option value="all"><?php _e('All Post Types', 'gatorcache');?></option>
+<?php foreach($postTypes as $type){?>
+        <option value="<?php echo $type->name;?>"><?php echo $type->label;?></option>
+<?php }?>
+      </select>
+<?php } else{?>
+      <input type="hidden" name="rf_type" value="all"/>
+<?php }?>
+      <button class="button-primary"><?php _e('Save', 'gatorcache');?></button><br/>
+       <i class="fa fa-question-circle"></i> <?php printf(__('eg: adding %s will refresh the post or archive at the url %s when content is published or updated', 'gatorcache'), '"example/stuff"', '"/example/stuff/"');?>  
+    </p>
+    <p class="bmpTxt"><?php _e('Custom Refresh Directories and Page paths:', 'gatorcache');?></strong></p>
+    <p id="no_rf_dirs"<?php if(empty($options['refresh_paths'])){echo ' style="display:block"';}?>><?php _e('You have no custom refresh paths', 'gatorcache')?></p>
+<ol id="rf_cust" name="rf_cust">
+    <?php foreach($options['refresh_paths'] as $type => $dirs){
+        foreach($dirs as $dir){?>
+      <li data-path="<?php echo $dir?>" class="ui-widget-content"><?php echo($dir . ' (' . $type . ')');?> <i class="fa fa-times-circle"></i></li>
+    <?php }}?>
+</ol>
   </form>
 <?php if(is_plugin_active('wordpress-https/wordpress-https.php')){?>
   <p><i class="fa fa-info-circle"></i> <?php printf(__('When SSL is enabled, Gator Cache is compatible with %s and will cache the pages it secures.', 'gatorcache'), '<em><strong>Wordpress HTTPS</strong></em>');?></p>
@@ -163,16 +210,7 @@ else{?>
   <p>
     <?php _e('By Default Gator Cache will cache your posts and pages', 'gatorcache');?>.
   </p>
-<?php $postTypes = get_post_types(array('public'   => true, '_builtin' => false), 'objects');
-if($isBbPress = is_plugin_active('bbpress/bbpress.php')){//it's bbpress Jim
-    unset($postTypes[bbp_get_reply_post_type()]);//reply won't have a permalink
-}
-if(defined('WOOCOMMERCE_VERSION')){//woocommerce
-    unset($postTypes['product_variation'], $postTypes['shop_coupon']);
-}
-if(isset($postTypes['wooframework'])){//woothemes
-    unset($postTypes['wooframework']);
-}
+<?php
 if(empty($postTypes)){?>
   <p><?php _e('Additional post types were not found.');?></p>
 <?php } else{//there are post types?>
@@ -196,7 +234,7 @@ if(empty($postTypes)){?>
 <?php }?>
   <p>*<?php _e('In addition to your regular Wordpress posts and pages, you may cache other post types as well, eg WooCommerce Products.', 'gatorcache');?></p>
 <?php if($isBbPress){?>
-  <p><i class="fa fa-info-circle"></i> <?php printf(__('To cache %s pages, select Forums and Topics. They will always be fresh, since Gator Cache automatically refreshes when topics are added or replies are posted.', 'gatorcache'), '<em><strong>bbPress</strong></em>');?></p>
+  <p><i class="fa fa-info-circle"></i> <?php printf(__('Selecting %s will cache your Forums and Topics. They will always be fresh, since Gator Cache automatically refreshes when topics are added or replies are posted.', 'gatorcache'), '<em><strong>bbPress</strong></em>');?></p>
 <?php }?>
 </form>
 </div>
@@ -220,7 +258,7 @@ if(empty($postTypes)){?>
 </div>
 <script type="text/javascript">
 (function($){
-    $('#gci_gen,#gci_usr,#gci_cpt,#gci_dbg,#gci_del,#gci_ref,#gci_dir').submit(function(e){
+    $('#gci_gen,#gci_usr,#gci_cpt,#gci_dbg,#gci_del,#gci_ref,#gci_dir,#gci_crf').submit(function(e){
         e.preventDefault();
         var res = $(this).find('.result'); 
         res.html('<img src="<?php echo $loading;?>"/>').show();
@@ -231,7 +269,8 @@ if(empty($postTypes)){?>
         else{
             var form = $(this).serializeArray();
         }
-        form.push({'name':'action','value': $(this).attr('id')});
+        var action = $(this).attr('id');
+        form.push({'name':'action','value':action});
         var btn = $(this).find('button');
         btn.attr('disabled', true);
         $.post(ajaxurl, form, function(data){
@@ -243,9 +282,11 @@ if(empty($postTypes)){?>
             if('1' === data.success){
                 res.html('undefined' !== typeof(data.msg) ? data.msg : '<?php _e('Success: Your settings have been saved', 'gatorcache');?>');
                 if('undefined' !== typeof(data.xdir)){
-                    $('#no_ex_dirs').hide();
-                    $('#ex_dir').val('');
-                    $('#ex_cust').append('<li data-path="' + data.xdir + '" class="ui-widget-content">' + data.xdir + '<i class="fa fa-times-circle"></i></li>');
+                    var context = 'gci_dir' === action ? 'ex' : 'rf';
+                    $('#no_' + context + '_dirs').hide();
+                    $('#' + context + '_dir').val('');
+                    var extra = ('undefined' !== typeof(data.xtype) && 'all' !== data.xtype) ? ' (' + data.xtype + ')' : '';
+                    $('#' + context + '_cust').append('<li data-path="' + data.xdir + '" class="ui-widget-content">' + data.xdir + extra + '<i class="fa fa-times-circle"></i></li>');
                 }
                 return;
             }
@@ -289,23 +330,28 @@ if(empty($postTypes)){?>
         });
         return false;
     });
-    $("#ex_cust").delegate("i.fa-times-circle", "click", function(e){
-        var res = $('#gci_dir').find('.result');
-        var btn = $('#gci_dir').find('button');
+    $("#ex_cust,#rf_cust").delegate("i.fa-times-circle", "click", function(e){
+        var form = $(this).parents('form');
+        var ol = $(this).parents('ol');
         var li = $(this).parents('li');
+        var res = form.find('.result');
+        var btn = form.find('button');
+        var context = 'ex_cust' === ol.attr('id') ? 'ex' : 'rf';
         btn.attr('disabled', true);
         res.html('<img src="<?php echo $loading;?>"/>').show();
-        $.post(ajaxurl, {'action':'gci_xdir', 'ex_dir':li.data('path')}, function(data){
+        var formData = {'action': 'gci_x' + context};
+        formData[context + '_dir'] = li.data('path');
+        $.post(ajaxurl, formData, function(data){
             btn.attr('disabled', false);
             if(null === data || 'undefined' === typeof(data.success)){
                 res.html('<?php _e('Unspecified Data Error', 'gatorcache');?>');
                 return;
             }
             if('1' === data.success){
-                res.html('undefined' !== typeof(data.msg) ? data.msg : '<?php _e('The selected path has been removed from exclusions', 'gatorcache');?>');
+                res.html('undefined' !== typeof(data.msg) ? data.msg : '<?php _e('The selected path has been removed', 'gatorcache');?>');
                 li.remove();
-                if(0 === $('#ex_cust > li').length){
-                    $('#no_ex_dirs').show();
+                if(0 === ol.find('li').length){
+                    $('#no_' + context + '_dirs').show();
                 }
                 return;
             }
