@@ -4,7 +4,7 @@ Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce
 Requires at least: 3.6
 Tested up to: 3.8.1
-Stable tag: 1.20
+Stable tag: 1.43
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,13 +12,14 @@ A better, stronger, faster page cache for Wordpress. Performance that's easy to 
 
 == Description ==
 
-Gator Cache is easy to manage page cache for Wordpress. Once installed, it automatically updates new and updated content in your cache. This keeps your website fresh while adding the superior performance advantage of a cache. Key features are as follows:
+Gator Cache is an easy to manage page cache for Wordpress. Once installed, it automatically updates new and updated content in your cache. This keeps your website fresh while adding the superior performance advantage of a cache. Key features are as follows:
 
 *   Greatly increases site performance by adding a page cache
 *   Automatic update of cache when content is published or updated
 *   Automatic update of cache when comments are approved
 *   Compatible with WooCommerce, will not cache mini-cart in page
 *   Compatible with bbPress, updates when topics, replies, etc are added
+*   Compatible with Wordpress HTTPS, will cache pages secured by the plugin when applicable
 *   Posts can be cached for logged-in Wordpress users by role. You can cache pages for Subscribers, Customers or other roles while skipping the cache for Administrators.
 *   Http caching supported with Apache and Nginx
 
@@ -36,6 +37,24 @@ Gator Cache is easy to manage page cache for Wordpress. Once installed, it autom
 
 == Changelog ==
 
+= 1.43 =
+* Maintenance release for caching SSL pages
+* Improved ssl caching to allow for forcing ssl
+* Added support for considering the ssl host set with the Wordress HTTPS plugin
+= 1.42 =
+* Maintenance release
+* Added host name verification for cache serving
+* Cache serving enforces the set permalink trailing slash convention
+= 1.41 =
+* Added feature for custom refresh rules based on page or archive url
+= 1.33 =
+* Maintenance release
+* Improved support for post comments and http caching
+= 1.32 =
+* Maintenance release for 1.31
+* Replace php short tags which may cause fatal errors on some php configurations
+= 1.31 =
+* Adds support for caching SSL pages and the Wordpress HTTPS plugin
 = 1.20 =
 * Adds the ability to exclude custom directories and pages
 = 1.11 =

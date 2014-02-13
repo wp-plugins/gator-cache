@@ -32,6 +32,7 @@ class Request{
         'requestUri' => null,
         'basePath'   => null,
         'baseUrl'    => null,
+        'host'       => null,
         'method'     => null,
         'qs'         => null,
         'secure'     => null
@@ -40,6 +41,7 @@ class Request{
     public $server;
     public $headers;
     protected $skipHeaderCheck = true;
+    protected $skipHostCheck = true;//if your app is already restricting the host no need to run checks
     //proxy stuff
     const HEADER_CLIENT_IP    = 'client_ip';
     const HEADER_CLIENT_HOST  = 'client_host';
@@ -373,6 +375,9 @@ class Request{
 
     public function getHost()
     {
+        if(isset($this->params['host'])){
+            return $this->params['host'];
+        }
         if (self::$trustedProxies && self::$trustedHeaders[self::HEADER_CLIENT_HOST] && $host = $this->getHeaders(self::$trustedHeaders[self::HEADER_CLIENT_HOST])) {
             $elements = explode(',', $host);
 
@@ -389,29 +394,30 @@ class Request{
 
         // as the host can come from the user (HTTP_HOST and depending on the configuration, SERVER_NAME too can come from the user)
         // check that it does not contain forbidden characters (see RFC 952 and RFC 2181)
-        if ($host && !preg_match('/^\[?(?:[a-zA-Z0-9-:\]_]+\.?)+$/', $host)) {
-            throw new UnexpectedValueException('Invalid Host');
+        if (!$this->skipHostCheck && $host && !preg_match('/^\[?(?:[a-zA-Z0-9-:\]_]+\.?)+$/', $host)) {
+            //throw new UnexpectedValueException('Invalid Host');
+            return false;
         }
 
-        if (count(self::$trustedHostPatterns) > 0) {
+        if (!$this->skipHostCheck && !empty(self::$trustedHostPatterns)) {
             // to avoid host header injection attacks, you should provide a list of trusted host patterns
 
             if (in_array($host, self::$trustedHosts)) {
-                return $host;
+                return $this->params['host'] = $host;
             }
 
             foreach (self::$trustedHostPatterns as $pattern) {
                 if (preg_match($pattern, $host)) {
                     self::$trustedHosts[] = $host;
 
-                    return $host;
+                    return $this->params['host'] = $host;
                 }
             }
-
-            throw new UnexpectedValueException('Untrusted Host');
+            //throw new UnexpectedValueException('Untrusted Host');
+            return false;
         }
 
-        return $host;
+        return $this->params['host'] = $host;
     }
     
     /**
