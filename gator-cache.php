@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.42
+ * @version 1.43
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.42
+Version: 1.43
 */
 class WpGatorCache
 {
@@ -38,7 +38,7 @@ class WpGatorCache
     protected static $refresh = false;
     protected static $sslHandler;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.42';
+    const VERSION = '1.43';
 
     public static function initBuffer(){
         $options = self::getOptions();
@@ -77,11 +77,12 @@ class WpGatorCache
             $buffer .= "\n" . '<!-- Gator Cached ' . $post->post_type . (isset(self::$sslHandler) ? ' via ' . self::$sslHandler : '') . ' on [' . gmdate('Y-m-d H:i:s', time() + (get_option('gmt_offset') * 3600)) . '] -->';
         }
         $cache = GatorCache::getCache($opts = $config->toArray());
-        if(!$cache->has($path = GatorCache::getRequest()->getBasePath(), $opts['group'])){
+        $request = GatorCache::getRequest();
+        if(!$cache->has($path = $request->getBasePath(), $opts['group'])){
             if(isset(self::$sslHandler) && false !== ($replace = self::doHttpsHandler($buffer))){
                 $buffer = $replace;
             }
-            $result = $cache->save($path, $buffer, $opts['group']);//return $result;
+            $result = $cache->save($path, $buffer, $request->isSecure() ? 'ssl@' . $opts['group'] : $opts['group']);//return $result;
         }
         return $buffer;
     }
@@ -140,7 +141,7 @@ class WpGatorCache
                 $wpConfig->set('installed', self::$options['installed'] = false);
                 $wpConfig->set('enabled', self::$options['enabled'] = false);
             }
-            elseif(1.42 > $version){//do some upgradin
+            elseif(1.43 > $version){//do some upgradin
                 if(1.3 > $version){//ssl flag
                     GatorCache::getConfig(self::$configPath)->save('skip_ssl', true);
                 }
@@ -171,6 +172,11 @@ class WpGatorCache
                         self::disableCache();
                         return;
                     }
+                }
+                if(1.43 > $version){//set the host name, new advanced cache
+                    self::setSecureHost();
+                    self::copyAdvCache();
+                    $wpConfig->set('version', self::$options['version'] = self::VERSION);
                 }
             }
             else{//nothing to see here, store the version
@@ -382,6 +388,9 @@ class WpGatorCache
             break;
             case 'gci_del':
                 $result = GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray())->purge($opts['group']);
+                if(!$options['skip_ssl']){//purge the ssl cache
+                    GatorCache::getCache($opts)->purge('ssl@' . $opts['group']);
+                }
                 if(!$result){
                     $error = __('Cache could not be purged', 'gatorcache');
                     GatorCache::getJsonResponse()->setParam('error', $error)->send();
@@ -891,6 +900,7 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
             }
             $config->save('host', $url['host']);
         }
+        self::setSecureHost();
         global $wp_rewrite;//make sure these match
         if($config->get('dir_slash') != ($dirSlash = (isset($wp_rewrite->use_trailing_slashes) && $wp_rewrite->use_trailing_slashes))){
             $config->save('dir_slash', $dirSlash);
@@ -953,6 +963,15 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
                 return false;
         }
         return $config->save('cache_dir', $cacheDir);
+    }
+
+    protected static function setSecureHost(){//wp https comptibility if the secure host does not match the wp host
+        if(false !== ($secureUrl = get_option('wordpress-https_ssl_host')) && is_plugin_active('wordpress-https/wordpress-https.php')){
+            $config = GatorCache::getConfig(self::$configPath);
+            if(false !== ($url = parse_url($secureUrl)) && $config->get('host') !== $url['host']){
+                $config->save('secure_host', $url['host']);
+            }
+        }
     }
 }
 //Hooks

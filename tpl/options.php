@@ -134,7 +134,7 @@ if(!strstr($cacheDir = $config->get('cache_dir'), ABSPATH)){//cache dir is paral
 <p><i class="fa fa-info-circle"></i> <?php _e('Add these rules to your apache virtual hosts config file.', 'gatorcache');?></p>
 <p><i class="fa fa-exclamation-triangle"></i> <?php _e('These rules will not work in your htaccess file.', 'gatorcache');?></p>
 <p><i class="fa fa-question-circle"></i> <?php printf(__('If you do not have access to your apache config, you can move your cache directory to support HTTP caching (%s).', 'gatorcache'), '<a href="#moveCache">' . $warnLink . '</a>');?></p>
-<textarea rows="36">
+<textarea rows="<?php echo($options['skip_ssl'] ? '40' : '58');?>">
 # Important - Alias the cache directory
 <?php echo 'Alias /gator_cache/ "' . $cacheDir . '/' . $groupDir . '/"
 ';
@@ -146,7 +146,7 @@ include self::$path . 'tpl' . DIRECTORY_SEPARATOR . 'http-rules.php';?>
 <?php }
 else{?>
 <p><i class="fa fa-info-circle"></i> <?php _e('Copy this block to the very top of your .htaccess above the Wordpress rules. Remove any other caching plugin rules.', 'gatorcache');?></p>
-<textarea rows="34"><?php include self::$path . 'tpl' . DIRECTORY_SEPARATOR . 'http-rules.php';?></textarea>
+<textarea rows="<?php echo($options['skip_ssl'] ? '38' : '56');?>"><?php include self::$path . 'tpl' . DIRECTORY_SEPARATOR . 'http-rules.php';?></textarea>
 <?php }?>
   </form>
 </div>

@@ -18,12 +18,13 @@ if(!defined('GC_CHK_USER') && $config->get('skip_user')){
 }
 $request = GatorCache::getRequest();
 if('GET' !== $request->getMethod() || '' !== $request->getQueryString() || ($request->isSecure() && $config->get('skip_ssl'))
-  || false === ($host = $config->get('host')) || $host !== $request->getHost()
+  || false === ($host = $config->get($request->isSecure() && $config->has('secure_host') ? 'secure_host' : 'host'))
+  || $host !== $request->getHost()
   || ($config->get('dir_slash') && '/' !== substr($request->getBasePath(), -1))){
     return;
 }
-if(false !== ($result = ($cache = GatorCache::getCache($opts = $config->toArray())->get($request->getBasePath(), $opts['group'])))){
-    if($opts['last_modified'] && false !== ($fileTime = $cache->getCache()->getFileTime())){
+if(false !== ($result = GatorCache::getCache($opts = $config->toArray())->get($request->getBasePath(), $request->isSecure() ? 'ssl@' . $opts['group'] : $opts['group']))){
+    if($opts['last_modified'] && false !== ($fileTime = GatorCache::getCache($opts)->getCache()->getFileTime())){
         header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $fileTime). ' GMT');
     }
     if(!empty($opts['pingback'])){
