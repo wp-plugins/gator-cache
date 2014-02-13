@@ -11,10 +11,15 @@ if(!defined('GC_CHK_USER') && $config->get('skip_user')){
             define('GC_CHK_USER', true);
             return;
         }
+        if(0 === strpos($cookies[$xx], 'comment_author')){
+            return;
+        }
     }
 }
 $request = GatorCache::getRequest();
-if('GET' !== $request->getMethod() || '' !== $request->getQueryString() || $request->isSecure()){//skip ssl for now
+if('GET' !== $request->getMethod() || '' !== $request->getQueryString() || ($request->isSecure() && $config->get('skip_ssl'))
+  || false === ($host = $config->get('host')) || $host !== $request->getHost()
+  || ($config->get('dir_slash') && '/' !== substr($request->getBasePath(), -1))){
     return;
 }
 if(false !== ($result = ($cache = GatorCache::getCache($opts = $config->toArray())->get($request->getBasePath(), $opts['group'])))){
@@ -24,5 +29,5 @@ if(false !== ($result = ($cache = GatorCache::getCache($opts = $config->toArray(
     if(!empty($opts['pingback'])){
         header('X-Pingback: ' . $opts['pingback']);
     }
-    die($result . ($opts['debug'] ? "\n<!-- Served by Advanced Cache -->\n" : ''));
+    die($result . ($opts['debug'] ? "\n<!-- Served by Advanced Cache " . $host . " -->\n" : ''));
 }
