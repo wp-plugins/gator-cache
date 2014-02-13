@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.41
+ * @version 1.42
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.41
+Version: 1.42
 */
 class WpGatorCache
 {
@@ -38,7 +38,7 @@ class WpGatorCache
     protected static $refresh = false;
     protected static $sslHandler;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.41';
+    const VERSION = '1.42';
 
     public static function initBuffer(){
         $options = self::getOptions();
@@ -140,7 +140,7 @@ class WpGatorCache
                 $wpConfig->set('installed', self::$options['installed'] = false);
                 $wpConfig->set('enabled', self::$options['enabled'] = false);
             }
-            elseif(1.41 > $version){//add config option and advanced cache changed
+            elseif(1.42 > $version){//do some upgradin
                 if(1.3 > $version){//ssl flag
                     GatorCache::getConfig(self::$configPath)->save('skip_ssl', true);
                 }
@@ -160,8 +160,20 @@ class WpGatorCache
                     }
                     $wpConfig->set('version', self::$options['version'] = self::VERSION);
                 }
+                if(1.42 > $version){//set the host name
+                    if(false !== ($url = parse_url(get_option('siteurl'))) && self::copyAdvCache()){
+                        global $wp_rewrite;
+                        GatorCache::getConfig(self::$configPath)->set('host', $url['host']);
+                        GatorCache::getConfig(self::$configPath)->save('dir_slash', isset($wp_rewrite->use_trailing_slashes) && $wp_rewrite->use_trailing_slashes);
+                        $wpConfig->set('version', self::$options['version'] = self::VERSION);
+                    }
+                    else{//houston we have a problem
+                        self::disableCache();
+                        return;
+                    }
+                }
             }
-            else{//store the version
+            else{//nothing to see here, store the version
                 $wpConfig->set('version', self::$options['version'] = self::VERSION);
             }
             $wpConfig->write();
@@ -279,8 +291,7 @@ class WpGatorCache
             $error = sprintf(__('Error [106]: Could not copy config file to your config directory [%s], please check permissions.', 'gatorcache'), ABSPATH);
             GatorCache::getJsonResponse()->setParam('error', $error)->send();
         }
-        $group = str_replace('.', '-', $url['host']) . (empty($url['path']) || '/' === $url['path'] ? '' : str_replace('/', '-', $url['path']));
-        if(!self::saveCachePath($path, $group)){
+        if(!self::saveCachePath($path, $url)){//1.42 save host
             $error = sprintf(__('Error [102]: Could not write to config file [%s], please check permissions.', 'gatorcache'), self::$configPath);
             GatorCache::getJsonResponse()->setParam('error', $error)->send();
         }
@@ -682,12 +693,16 @@ class WpGatorCache
         return false !== @copy(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.ini.php',  $configDir . 'gc-config.ini.php');
     }
 
-    protected static function saveCachePath($path, $group){
+    protected static function saveCachePath($path, $url){
         if(false === ($config = GatorCache::getConfig(self::$configPath, true))){
             return false;
         }
+        global $wp_rewrite;
+        $group = str_replace('.', '-', $url['host']) . (empty($url['path']) || '/' === $url['path'] ? '' : str_replace('/', '-', $url['path']));
         $config->set('cache_dir', $path);
         $config->set('group', $group);
+        $config->set('host', $url['host']);
+        $config->set('dir_slash', isset($wp_rewrite->use_trailing_slashes) && $wp_rewrite->use_trailing_slashes);
         return $config->write();
     }
 
@@ -850,22 +865,35 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
             return false;
         }
         //check wp cache is set and the right adv cache is present
-        if((defined('WP_CACHE') && WP_CACHE) && self::copyAdvCache(false)){
-            return true;
+        if(!(defined('WP_CACHE') && WP_CACHE) || !self::copyAdvCache(false)){
+            //attempt to repair
+            if(!($wpCache = self::saveWpConfig()) || !self::copyAdvCache()){
+                if(!$wpCache){
+                    $msg = __('Your Wordpress configuration file could not be updated.', 'gatorcache');
+                    $code = '109';
+                }
+                else{
+                    $msg = __('Your advanced cache file is missing or corrupted.', 'gatorcache');
+                    $code = '110';
+                }
+                GatorCache::getNotices()->add($msg, $code);
+                self::disableCache();//requires reinstall
+                return false;
+            }
         }
-        //attempt to repair
-        if(!($wpCache = self::saveWpConfig()) || !self::copyAdvCache()){
-            if(!$wpCache){
-                $msg = __('Your Wordpress configuration file could not be updated.', 'gatorcache');
-                $code = '109';
+        //check for the host
+        if(!$config->has('host')){
+            if(false === ($url = parse_url(get_option('siteurl')))){
+                $msg = __('Could not reliably set your host name.', 'gatorcache');
+                GatorCache::getNotices()->add($msg, '111');
+                self::disableCache();//requires reinstall
+                return false;
             }
-            else{
-                $msg = __('Your advanced cache file is missing or corrupted.', 'gatorcache');
-                $code = '110';
-            }
-            GatorCache::getNotices()->add($msg, $code);
-            self::disableCache();//requires reinstall
-            return false;//requires reinstall
+            $config->save('host', $url['host']);
+        }
+        global $wp_rewrite;//make sure these match
+        if($config->get('dir_slash') != ($dirSlash = (isset($wp_rewrite->use_trailing_slashes) && $wp_rewrite->use_trailing_slashes))){
+            $config->save('dir_slash', $dirSlash);
         }
         return true;
     }

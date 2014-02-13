@@ -48,6 +48,10 @@ class Config_Lite
         $this->config[$key] = $val;
     }
 
+    public function has($key){
+        return isset($this->config[$key]);
+    }
+
     public function toArray(){
         return $this->config;
     }

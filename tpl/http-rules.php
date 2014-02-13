@@ -20,6 +20,7 @@ BrowserMatch \bMSIE !no-gzip !gzip-only-text/html
 # Assume mod_rewrite
 RewriteEngine On
 #Clients that support gzip
+RewriteCond %{HTTP_HOST} ^<?php echo($host = str_replace('.', '\.', $config->get('host')));?>$ 
 RewriteCond %{HTTP:Cookie} !^.*(wordpress_logged_in|comment_author).*$
 RewriteCond %{HTTP:Accept-Encoding} gzip
 RewriteCond %{ENV:no-gzip} !1
@@ -27,6 +28,7 @@ RewriteCond <?php echo $cacheDir . '/' . $groupDir;?>/%{REQUEST_URI} -d
 RewriteCond <?php echo $cacheDir . '/' . $groupDir;?>/%{REQUEST_URI}index.gz -f
 RewriteRule ^/?(.*)$ /gator_cache/$1index.gz [L,E=no-gzip:1]
 #Clients without gzip
+RewriteCond %{HTTP_HOST} ^<?php echo($host);?>$ 
 RewriteCond %{HTTP:Cookie} !^.*(wordpress_logged_in|comment_author).*$
 RewriteCond %{HTTP:Accept-Encoding} !gzip [OR]
 RewriteCond %{ENV:no-gzip} 1
