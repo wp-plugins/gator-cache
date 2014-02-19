@@ -44,7 +44,7 @@ if(isset($postTypes['wooframework'])){//woothemes
 </ul>
 <div id="tabs-7">
   <form id="gci_dir" method="post" action="" autocomplete="off">
-    <p class="bmpTxt"><?php _e('Custom Rules for cache exclusion:', 'gatorcache');?></strong></p>
+    <p class="bmpTxt"><?php _e('Custom Rules for cache exclusion:', 'gatorcache');?></p>
     <p class="result"></p>
     <p>
       <label for="ex_dir"><?php _e('Enter directory or page name to exclude:', 'gatorcache');?></label><br/>
@@ -52,7 +52,7 @@ if(isset($postTypes['wooframework'])){//woothemes
       <button class="button-primary"><?php _e('Save', 'gatorcache');?></button><br/>
        <i class="fa fa-question-circle"></i> <?php printf(__('eg: excluding %s will exclude any url that contains %s', 'gatorcache'), '"dynamic-stuff"', '"/dynamic-stuff/"');?>  
     </p>
-    <p class="bmpTxt"><?php _e('Excluded Directories and Page paths:', 'gatorcache');?></strong></p>
+    <p class="bmpTxt"><?php _e('Excluded Directories and Page paths:', 'gatorcache');?></p>
     <p id="no_ex_dirs"<?php if(empty($options['exclude_paths'])){echo ' style="display:block"';}?>><?php _e('You have no excluded paths', 'gatorcache')?></p>
 <ol id="ex_cust" name="ex_cust">
     <?php foreach($options['exclude_paths'] as $dir){?>
@@ -67,7 +67,7 @@ if(isset($postTypes['wooframework'])){//woothemes
 </div>
 <div id="tabs-6">
   <form id="gci_ref" method="post" action="" autocomplete="off">
-    <p class="bmpTxt"><?php _e('Automatic refresh rules for posts, pages and selected custom post types:', 'gatorcache');?></strong></p>
+    <p class="bmpTxt"><?php _e('Automatic refresh rules for posts, pages and selected custom post types:', 'gatorcache');?></p>
     <p class="result"></p>
     <p>
       <input type="checkbox" name="rf_home" id="rf_home" value="1"<?php if($options['refresh']['home']){echo ' checked="checked"';}?>/> 
@@ -83,7 +83,7 @@ if(isset($postTypes['wooframework'])){//woothemes
       <label for="rf_all"><?php _e('Refresh all pages. This is only necessary if your recent posts or custom posts, such as products, widget is on all pages.', 'gatorcache');?></label> 
     </p>
 <?php }?>
-    <p class="bmpTxt"><?php _e('SSL Settings:', 'gatorcache');?></strong></p>
+    <p class="bmpTxt"><?php _e('SSL Settings:', 'gatorcache');?></p>
     <p>
       <input type="checkbox" name="cache_ssl" id="cache_ssl" value="1"<?php if(!$options['skip_ssl']){echo ' checked="checked"';}?>/> 
       <label for="cache_ssl"><?php _e('Cache secure SSL https protocol pages', 'gatorcache');?></label>
@@ -92,7 +92,7 @@ if(isset($postTypes['wooframework'])){//woothemes
   </form>
 <hr/>
 <form id="gci_crf" method="post" action="" autocomplete="off">
-    <p class="bmpTxt"><?php _e('Custom Refresh Rules:', 'gatorcache');?></strong></p>
+    <p class="bmpTxt"><?php _e('Custom Refresh Rules:', 'gatorcache');?></p>
     <p class="result"></p>
     <p>
       <label for="rf_dir"><?php _e('Enter directory or page name to refresh on updates:', 'gatorcache');?></label><br/>
@@ -112,7 +112,7 @@ if(!empty($postTypes)){?>
       <button class="button-primary"><?php _e('Save', 'gatorcache');?></button><br/>
        <i class="fa fa-question-circle"></i> <?php printf(__('eg: adding %s will refresh the post or archive at the url %s when content is published or updated', 'gatorcache'), '"example/stuff"', '"/example/stuff/"');?>  
     </p>
-    <p class="bmpTxt"><?php _e('Custom Refresh Directories and Page paths:', 'gatorcache');?></strong></p>
+    <p class="bmpTxt"><?php _e('Custom Refresh Directories and Page paths:', 'gatorcache');?></p>
     <p id="no_rf_dirs"<?php if(empty($options['refresh_paths'])){echo ' style="display:block"';}?>><?php _e('You have no custom refresh paths', 'gatorcache')?></p>
 <ol id="rf_cust" name="rf_cust">
     <?php foreach($options['refresh_paths'] as $type => $dirs){

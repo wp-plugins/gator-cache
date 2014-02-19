@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.43
+ * @version 1.45
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.43
+Version: 1.45
 */
 class WpGatorCache
 {
@@ -38,7 +38,7 @@ class WpGatorCache
     protected static $refresh = false;
     protected static $sslHandler;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.43';
+    const VERSION = '1.45';
 
     public static function initBuffer(){
         $options = self::getOptions();
@@ -647,6 +647,15 @@ class WpGatorCache
         return $messages;
     }
 
+    public static function postComment($id, $comment = null){
+        if(!isset($comment)){
+            $comment = get_comment($id);
+        }
+        if($comment->comment_approved){
+            self::saveComment('approved', 'any', $comment);
+        }
+    }
+
     public static function saveComment($new_status, $old_status, $comment){
         if('approved' !== $new_status && 'approved' !== $old_status){//will not change page
             return;
@@ -1006,4 +1015,6 @@ if(is_admin()){
 }
 add_action('transition_post_status', 'WpGatorCache::savePost', 11111, 3);
 add_action('transition_comment_status', 'WpGatorCache::saveComment', 11, 3);
+add_action('wp_insert_comment', 'WpGatorCache::postComment', 10, 2);
+add_action('edit_comment', 'WpGatorCache::postComment');
 add_filter('comment_cookie_lifetime', 'WpGatorCache::filterCookieLifetime', 11111);
