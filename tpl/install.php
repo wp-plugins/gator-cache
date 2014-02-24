@@ -9,11 +9,11 @@ if($notices->has()){?>
 <?php }?>
 <div class="wrap">
   <h2>Gator Cache <?php _e('Installation', 'gatorcache');?></h2>
-  <h3><?php _e('Automated 2-step Gator Cache Install', 'gatorcache');?></h3>
+  <h3><?php _e('Gator Cache Installation', 'gatorcache');?></h3>
   <div id="gci_result" style="display:none;margin:1em 0;color:forestgreen;font-weight:600"></div>
   <form id="gci_install" method="post" action="">
     <div id="step_1">
-      <label><?php printf('<strong>%s</strong>) %s', __('Step 1', 'gatorcache'), __('Create Cache Directory', 'gatorcache'));?>:</label> <strong><?php echo($cacheDir = self::getInitDir());?></strong>*
+      <label><?php printf('<strong>%s</strong>) %s', __('Install', 'gatorcache'), __('Create Cache Directory', 'gatorcache'));?>:</label> <strong><?php echo($cacheDir = self::getInitDir());?></strong>*
       <input type="submit" id="gci_btn" name="gci_btn" class="button-primary" style="margin: 1em 0 1em 1em" value="Install"/>
       <p id="block_inroot" style="display:none">
         <span style="display:block;margin 1em 0;color:firebrick;font-weight:600"><?php _e('Gator Cache could not create your cache directory, please manually create the directory shown in the path above. Alternatively, your host may be set up to only allow the web server to write to files in the document root. While this is not a good practice, you can check the box below to create the cache directory in your document root.', 'gatorcache');?></span></br>
@@ -21,22 +21,10 @@ if($notices->has()){?>
       </p>
       <p>*<?php _e('Gator Cache will attempt to install your cache directory parallel to your document root, if it does not already exist.', 'gatorcache');?></p>
     </div>
-    <div id="step_2" style="display:none">
-      <p><?php printf('<strong>%s</strong>) %s', __('Step 2', 'gatorcache'), __('Copy Php Advanced Cache File and Update Wordpress Config', 'gatorcache'));?>:</label>
-      <input type="submit" id="gci_btn2" name="gci_btn2" class="button-primary" style="margin: 1em 0 1em 1em" value="Install"/>
-      <p>*<?php printf('%s <strong>advance_cache.php</strong> %s', __('Gator Cache will attempt to copy', 'gatorcache'), __('to Wordpress', 'gatorcache'));?></p>
-    </div>
-    <input type="hidden" id="gci_step" name="gci_step" value="1"/>
   </form>
   <script type="text/javascript">
 (function($){
-    $('#gci_btn2').click(function(){
-        $('#gci_step').val('2');
-        $(this).attr('disabled', true);
-        return true;
-    });
     $('#gci_install').submit(function(e){
-        var step = $('#gci_step').val();
         e.preventDefault();
         $('#gci_result').html('<img src="<?php echo($loading = site_url('/wp-includes/js/tinymce/themes/advanced/skins/default/img/progress.gif'));?>"/>').show();
         var form = $(this).serializeArray();
@@ -48,33 +36,24 @@ if($notices->has()){?>
         $.post(ajaxurl, form, function(data){
             if(null === data || 'undefined' === typeof(data.success)){
                 $('#gci_btn').attr('disabled', false);
-                $('#gci_btn2').attr('disabled', false);
                 $('#gci_result').html('<?php _e('Unspecified Data Error', 'gatorcache');?>');
                 return;
             }
             if('1' === data.success){
-                if('2' === step){
-                    $('#gci_result').html('<?php _e('Gator Cache Successfully Installed, Refreshing', 'gatorcache');?> <img style="vertical-align:middle" src="<?php echo $loading;?>"/>');
-                    window.setTimeout(function(){
-                        window.location.replace("<?php echo admin_url('admin.php?page=gtr_cache');?>");
-                    }, 1000);
-                }
-                else{
-                    $('#gci_result').html('undefined' === typeof(data.msg) ? '<?php _e('Success: Your settings have been saved', 'gatorcache');?>' : data.msg);
-                    $('#gci_btn2').attr('disabled', false);
-                    $('#step_1').hide();
-                    $('#step_2').show()
-                }
+                $('#gci_result').html('<?php _e('Gator Cache Successfully Installed, Refreshing', 'gatorcache');?> <img style="vertical-align:middle" src="<?php echo $loading;?>"/>');
+                window.setTimeout(function(){
+                    window.location.replace("<?php echo admin_url('admin.php?page=gtr_cache');?>");
+                }, 1000);
                 return;
             }
             $('#gci_btn').attr('disabled', false);
-            $('#gci_btn2').attr('disabled', false);
             $('#gci_result').html('undefined' === typeof(data.error) ? '<?php _e('Error Saving Settings', 'gatorcache');?>' : data.error);
-            $('#block_inroot').show();
+            if('undefined' !== typeof(data.code) && ('100' === data.code || '101' === data.code)){
+                $('#block_inroot').show();
+            }
         },'json').fail(function(xhr, textStatus, errorThrown){
             $('#gci_result').html('<?php _e('Error: Unspecified network error', 'gatorcache');?>.');
             $('#gci_btn').attr('disabled', false);
-            $('#gci_btn2').attr('disabled', false);
         });
         return false;
     });

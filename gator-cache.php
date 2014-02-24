@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.45
+Version: 1.46
 */
 class WpGatorCache
 {
@@ -38,13 +38,13 @@ class WpGatorCache
     protected static $refresh = false;
     protected static $sslHandler;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.45';
+    const VERSION = '1.46';
 
     public static function initBuffer(){
         $options = self::getOptions();
         $request = GatorCache::getRequest();
         global $post;
-        if(!$options['enabled'] || self::VERSION !== $options['version'] //not upgraded only needed for 1.0 > 1.11
+        if(!$options['enabled']
           || '.php' === substr($path = $request->getBasePath(), -4) //uri returns the whole qs
           || (defined('DONOTCACHEPAGE') && DONOTCACHEPAGE)
           || !isset($post)
@@ -249,58 +249,53 @@ class WpGatorCache
             die('0');
         }
         $options = self::getOptions();
-        if(!isset($_POST['gci_step']) || !ctype_digit($step = $_POST['gci_step'])){
-            $step = '1';
-        }
-        if('2' === $step){
-            if(!self::copyAdvCache()){
-                $error = __('Error [103]: could not copy advance cache php file, please copy manually', 'gatorcache');
-                GatorCache::getJsonResponse()->setParam('error', $error)->send(); 
-            }
-            if(!self::saveWpConfig()){
-                $error = __('Error [104]: Could not write to your wordpress config file, please change permissions or manually insert WP_CACHE', 'gatorcache');
-                GatorCache::getJsonResponse()->setParam('error', $error)->send(); 
-            }
-            //Installation complete
-            $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
-            $wpConfig->set('installed', true);
-            $wpConfig->set('version', self::VERSION);
-            if('open' === get_option('default_ping_status')){
-                $wpConfig->set('pingback', true);
-                GatorCache::getConfig(self::$configPath)->save('pingback', get_bloginfo('pingback_url'));
-            }
-            $wpConfig->write();
-            $msg = __('Gator Cache Successfully Installed', 'gatorcache');
-            GatorCache::getJsonResponse()->setParam('msg', $msg)->send(true); 
-        }
+        //install create cache dir
         if(is_dir($path = self::getInitDir(isset($_POST['ndoc_root']) && '1' === $_POST['ndoc_root']))){
             if(!@is_writable($path)){
                 $error = sprintf(__('Error [101]: Cache Directory [%s] is not writable, please change permissions.', 'gatorcache'), $path);
-                GatorCache::getJsonResponse()->setParam('error', $error)->send();
+                GatorCache::getJsonResponse()->setParam('error', $error)->setParam('code', '101')->send();
             }
             $msg = __('Cache directory exists, proceeding to Step 2', 'gatorcache');
         }
         else{
             if(false === @mkdir($path, 0755)){
                 $error = __('Error [100]: Cache Directory could not be created', 'gatorcache');
-                GatorCache::getJsonResponse()->setParam('error', $error)->send();
+                GatorCache::getJsonResponse()->setParam('error', $error)->setParam('code', '100')->send();
             }
-            $msg = __('Cache directory created, proceeding to Step 2', 'gatorcache');
         }
-        //get the group for subdir support or people that put blogs in the doc root
+        //cache dir created or exists - get the group for subdir support or people that put blogs in the doc root
         if(false === ($url = parse_url($siteurl = get_option('siteurl')))){
             $error = sprintf(__('Error [105]: Could not parse site url setting [%s], please check Wordpress configuration.', 'gatorcache'), $siteurl);
             GatorCache::getJsonResponse()->setParam('error', $error)->send();
         }
-        //new with ver 1.1, move config to cfg_dir
+        //new with ver 1.1, move config to Wordpress_dir
         if(!is_file(self::$configPath) && !self::copyConfigFile(ABSPATH)){
-            $error = sprintf(__('Error [106]: Could not copy config file to your config directory [%s], please check permissions.', 'gatorcache'), ABSPATH);
+            $error = sprintf(__('Error [106]: Could not copy config file to your Wordpress directory [%s], please check permissions.', 'gatorcache'), ABSPATH);
             GatorCache::getJsonResponse()->setParam('error', $error)->send();
         }
         if(!self::saveCachePath($path, $url)){//1.42 save host
             $error = sprintf(__('Error [102]: Could not write to config file [%s], please check permissions.', 'gatorcache'), self::$configPath);
             GatorCache::getJsonResponse()->setParam('error', $error)->send();
         }
+        //intial setup done, copy advance cache and write to wp config
+        if(!self::copyAdvCache()){
+            $error = __('Error [103]: could not copy advance cache php file, please copy manually', 'gatorcache');
+            GatorCache::getJsonResponse()->setParam('error', $error)->send(); 
+        }
+        if(!self::saveWpConfig()){
+            $error = __('Error [104]: Could not write to your wordpress config file, please change permissions or manually insert WP_CACHE', 'gatorcache');
+            GatorCache::getJsonResponse()->setParam('error', $error)->send(); 
+        }
+        //Installation complete
+        $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
+        $wpConfig->set('installed', true);
+        $wpConfig->set('version', self::VERSION);
+        if('open' === get_option('default_ping_status')){
+            $wpConfig->set('pingback', true);
+            GatorCache::getConfig(self::$configPath)->save('pingback', get_bloginfo('pingback_url'));
+        }
+        $wpConfig->write();
+        $msg = __('Gator Cache Successfully Installed', 'gatorcache');
         GatorCache::getJsonResponse()->setParam('msg', $msg)->send(true);
     }
 
@@ -720,6 +715,9 @@ class WpGatorCache
         $config->set('cache_dir', $path);
         $config->set('group', $group);
         $config->set('host', $url['host']);
+        if(false !== ($secureHost = self::setSecureHost(false))){
+            $config->set('secure_host', $secureHost);
+        }
         $config->set('dir_slash', isset($wp_rewrite->use_trailing_slashes) && $wp_rewrite->use_trailing_slashes);
         return $config->write();
     }
@@ -974,13 +972,17 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
         return $config->save('cache_dir', $cacheDir);
     }
 
-    protected static function setSecureHost(){//wp https comptibility if the secure host does not match the wp host
+    protected static function setSecureHost($save = true){//wp https comptibility if the secure host does not match the wp host
         if(false !== ($secureUrl = get_option('wordpress-https_ssl_host')) && is_plugin_active('wordpress-https/wordpress-https.php')){
             $config = GatorCache::getConfig(self::$configPath);
             if(false !== ($url = parse_url($secureUrl)) && $config->get('host') !== $url['host']){
+                if(!$save){
+                    return $url['host'];
+                }
                 $config->save('secure_host', $url['host']);
             }
         }
+        return false;
     }
 }
 //Hooks
