@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.46
+ * @version 1.47
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.46
+Version: 1.47
 */
 class WpGatorCache
 {
@@ -38,7 +38,7 @@ class WpGatorCache
     protected static $refresh = false;
     protected static $sslHandler;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.46';
+    const VERSION = '1.47';
 
     public static function initBuffer(){
         $options = self::getOptions();
@@ -210,9 +210,12 @@ class WpGatorCache
         if('toplevel_page_gtr_cache' !== $context){
             return;
         }
+        if(wp_script_is('chosen', 'registered')){//make sure the correct version of chosen is registered
+            wp_deregister_script('chosen');
+        }
         wp_enqueue_script('jquery-ui-tabs');
         wp_enqueue_script('jquery-ui-selectable');
-        wp_enqueue_script('chosen', ($pluginUrl = plugins_url(null, __FILE__)) . '/js/chosen.jquery.min.js', array('jquery'), '1.0.0', true);
+        wp_enqueue_script('chosen', ($pluginUrl = plugins_url(null, __FILE__)) . '/js/chosen.jquery.min.js', array('jquery'), '0.9.8', true);
         wp_enqueue_script('gator-cache', $pluginUrl . '/js/gator-cache.js', array('jquery-ui-tabs'), self::VERSION, true);
         wp_enqueue_style('jquery-ui', '//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/themes/redmond/jquery-ui.css');
         wp_enqueue_style('chosen', $pluginUrl . '/css/chosen.css');
