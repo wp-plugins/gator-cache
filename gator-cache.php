@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.45
+ * @version 1.46
  */
 /*
 Plugin Name: Gator Cache
