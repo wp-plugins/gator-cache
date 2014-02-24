@@ -4,7 +4,7 @@ Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce
 Requires at least: 3.6
 Tested up to: 3.8.1
-Stable tag: 1.43
+Stable tag: 1.47
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,11 +32,23 @@ Gator Cache is an easy to manage page cache for Wordpress. Once installed, it au
 1. Upload `gator-cache.zip` to the `/wp-content/plugins/` directory
 2. Activate the plugin through the 'Plugins' menu in WordPress
 3. Click on Settings or the GatorCache menu icon to run the automated setup
-4. Follow the automated 2-step installation
+4. Click Install to perform the automated installation process
 5. Check the "enabled" box and update your general settings
 
 == Changelog ==
 
+= 1.47 =
+* Maintenance release WooCommerce 2.1 compatibility
+* Resolves conflict with WooCommerce registering chosen.js (enhanced selects) out of context
+= 1.46 =
+* Maintenance release streamlines installation
+* Installation is a simpler one-step process
+= 1.45 =
+* Maintenance release improves comments support
+* Adds additional cache refresh check when editing comments without changing status
+= 1.44 =
+* Maintenance release improves comments support
+* Adds additional cache refresh check when new comments are inserted without moderation 
 = 1.43 =
 * Maintenance release for caching SSL pages
 * Improved ssl caching to allow for forcing ssl
