@@ -48,6 +48,12 @@ class Config_Lite
         $this->config[$key] = $val;
     }
 
+    public function remove($key){
+        if(isset($this->config[$key])){
+            unset($this->config[$key]);
+        }
+    }
+
     public function has($key){
         return isset($this->config[$key]);
     }

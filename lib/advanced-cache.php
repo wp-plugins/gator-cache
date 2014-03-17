@@ -1,7 +1,8 @@
 <?php
 if(!defined('ABSPATH') || is_admin() || (defined('WP_INSTALLING') && WP_INSTALLING)
   || false === (@include_once(WP_CONTENT_DIR . '/plugins/gator-cache/lib/GatorCache.php'))//for some reason this needs parens
-  || false === ($config = GatorCache::getConfig(ABSPATH . 'gc-config.ini.php', true))
+  || (($isMulti = is_multisite()) && (false === ($blogMap = GatorCache::getBlogMap()) || false === ($blogId = $blogMap->getBlogId())))
+  || false === ($config = GatorCache::getConfig($path = ABSPATH . ($isMulti ? 'gc-config-' . $blogId . '.ini.php' : 'gc-config.ini.php'), true))
   || !$config->get('enabled')){
     return;
 }

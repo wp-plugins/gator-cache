@@ -502,10 +502,10 @@ class Cache_Lite
     * @return boolean true if no problem
     * @access public
     */
-    function clean($group = false, $mode = 'ingroup')
+    function clean($group = false, $mode = 'ingroup', $path = null)
     {
         if($this->_fileDirMode){
-            return $this->_cleanDir($this->_cacheDir . (false === $group ? '' : $group . DIRECTORY_SEPARATOR), false, $mode);
+            return $this->_cleanDir($this->_cacheDir . (false === $group ? '' : $group . DIRECTORY_SEPARATOR) . (isset($path) ? str_replace('/', DIRECTORY_SEPARATOR, $path) : ''), false, $mode);
         }
         return $this->_cleanDir($this->_cacheDir, $group, $mode);
     }

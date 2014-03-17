@@ -26,17 +26,17 @@ RewriteCond %{HTTP_HOST} ^<?php echo($host = str_replace('.', '\.', $config->get
 RewriteCond %{HTTP:Cookie} !^.*(wordpress_logged_in|comment_author).*$
 RewriteCond %{HTTP:Accept-Encoding} gzip
 RewriteCond %{ENV:no-gzip} !1
-RewriteCond <?php echo $cacheDir . '/' . $groupDir;?>/%{REQUEST_URI} -d
-RewriteCond <?php echo $cacheDir . '/' . $groupDir;?>/%{REQUEST_URI}index.gz -f
-RewriteRule ^/?(.*)$ /gator_cache/<?php echo $groupDir;?>/$1index.gz [L,E=no-gzip:1]
+RewriteCond <?php echo $cacheDir;?>/%{HTTP_HOST}/%{REQUEST_URI} -d
+RewriteCond <?php echo $cacheDir;?>/%{HTTP_HOST}/%{REQUEST_URI}index.gz -f
+RewriteRule ^/?(.*)$ /gator_cache/%{HTTP_HOST}/$1index.gz [L,E=no-gzip:1,E=gc_green:1]
 #Clients without gzip
 RewriteCond %{HTTPS} !=on
 RewriteCond %{HTTP_HOST} ^<?php echo($host);?>$ 
 RewriteCond %{HTTP:Cookie} !^.*(wordpress_logged_in|comment_author).*$
 RewriteCond %{HTTP:Accept-Encoding} !gzip [OR]
 RewriteCond %{ENV:no-gzip} 1
-RewriteCond <?php echo $cacheDir . '/' . $groupDir;?>/%{REQUEST_URI}index.html -f
-RewriteRule ^/?(.*)$ /gator_cache/<?php echo $groupDir;?>/$1index.html [L]
+RewriteCond <?php echo $cacheDir;?>/%{HTTP_HOST}/%{REQUEST_URI}index.html -f
+RewriteRule ^/?(.*)$ /gator_cache/%{HTTP_HOST}/$1index.html [L,E=gc_green:1]
 <?php if(!$options['skip_ssl']){?>
 #Ibid for SSL
 #Clients that support gzip
@@ -45,15 +45,15 @@ RewriteCond %{HTTP_HOST} ^<?php echo($host = str_replace('.', '\.', $config->has
 RewriteCond %{HTTP:Cookie} !^.*(wordpress_logged_in|comment_author).*$
 RewriteCond %{HTTP:Accept-Encoding} gzip
 RewriteCond %{ENV:no-gzip} !1
-RewriteCond <?php echo $cacheDir . '/' . ($groupDir = 'ssl@' . $groupDir);?>/%{REQUEST_URI} -d
-RewriteCond <?php echo $cacheDir . '/' . $groupDir;?>/%{REQUEST_URI}index.gz -f
-RewriteRule ^/?(.*)$ /gator_cache/<?php echo $groupDir;?>/$1index.gz [L,E=no-gzip:1]
+RewriteCond <?php echo($cacheDir = ($cacheDir . '/ssl@'));?>%{HTTP_HOST}/%{REQUEST_URI} -d
+RewriteCond <?php echo $cacheDir;?>%{HTTP_HOST}/%{REQUEST_URI}index.gz -f
+RewriteRule ^/?(.*)$ /gator_cache/ssl@%{HTTP_HOST}/$1index.gz [L,E=no-gzip:1,E=gc_green:1]
 #Clients without gzip
 RewriteCond %{HTTPS} =on
 RewriteCond %{HTTP_HOST} ^<?php echo($host);?>$ 
 RewriteCond %{HTTP:Cookie} !^.*(wordpress_logged_in|comment_author).*$
 RewriteCond %{HTTP:Accept-Encoding} !gzip [OR]
 RewriteCond %{ENV:no-gzip} 1
-RewriteCond <?php echo $cacheDir . '/' . $groupDir;?>/%{REQUEST_URI}index.html -f
-RewriteRule ^/?(.*)$ /gator_cache/<?php echo $groupDir;?>/$1index.html [L]
-<?php } echo '# END Gator Cache';?>
+RewriteCond <?php echo $cacheDir;?>%{HTTP_HOST}/%{REQUEST_URI}index.html -f
+RewriteRule ^/?(.*)$ /gator_cache/ssl@%{HTTP_HOST}/$1index.html [L,E=gc_green:1]
+<?php } echo '# END Gator Cache';
