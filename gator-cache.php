@@ -1,17 +1,17 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.47
+ * @version 1.51
  */
 /*
 Plugin Name: Gator Cache
 Plugin URI: http://wordpress.org/plugins/gator-cache/
-Description: A Better, Stronger, Faster Wordpress Cache Plugin. Easy to install and manage. 
+Description: A Better, Stronger, Faster WordPress Cache Plugin. Easy to install and manage. 
 Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.47
+Version: 1.51
 */
 class WpGatorCache
 {
@@ -29,6 +29,7 @@ class WpGatorCache
         'pingback' => false,
         'skip_ssl' => true,
         'version' => false,
+        'multisite_paths' => false,
     );
 
     protected static $options;
@@ -37,8 +38,9 @@ class WpGatorCache
     protected static $post;
     protected static $refresh = false;
     protected static $sslHandler;
+    protected static $webUser;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.47';
+    const VERSION = '1.51';
 
     public static function initBuffer(){
         $options = self::getOptions();
@@ -57,6 +59,7 @@ class WpGatorCache
           || self::hasPathExclusion($path)
           || self::isWooCart()
           || isset($_COOKIE['comment_author_' . COOKIEHASH])
+          //|| (false !== $options['multisite_paths'] && self::isMultiSubPath($request->getBasePath()))
           || ($request->isSecure() && ($options['skip_ssl'] || self::sslObHandlers()))){//obhandlers has to be last
               return;
         }
@@ -118,7 +121,7 @@ class WpGatorCache
     public static function Deactivate(){
         //purge the cache
         self::getOptions();
-        GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray())->purge($opts['group']);
+        GatorCache::purgeCache(self::$configPath);
         //update wp-cache setting in wp-config.php
         if(self::saveWpConfig(false)){//remove the advanced cache file
             @unlink(WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'advanced-cache.php');
@@ -179,11 +182,38 @@ class WpGatorCache
                     $wpConfig->set('version', self::$options['version'] = self::VERSION);
                 }
             }
+            elseif(1.51 > $version){//move the cache to new group which is host name
+                $config = GatorCache::getConfig(self::$configPath);
+                if(@rename(($cacheDir = $config->get('cache_dir') . DIRECTORY_SEPARATOR) . $config->get('group'), $cacheDir . ($host = $config->get('host')))){
+                    $config->save('group', $host);
+                    //@note previous rewrite rules will need to be updated for http cache
+                    //@note copying cache security htaccess will cause 404 for http cache so do not include it here, in future put it in verify install
+                }
+                self::copyAdvCache();//advanced cache changed with this version
+                $wpConfig->set('version', self::$options['version'] = self::VERSION);
+            }
             else{//nothing to see here, store the version
                 $wpConfig->set('version', self::$options['version'] = self::VERSION);
             }
             $wpConfig->write();
         }
+        /*if(is_multisite() && !is_subdomain_install() && is_main_site(get_current_blog_id()) && !is_plugin_active_for_network(self::$path, 'gator-cache.php')){
+            add_filter('wpmu_signup_blog_notification', 'WpGatorCache::newMpmuSite', 10, 2);
+        }*/
+    }
+
+/**
+ * newMpmuSite
+ * 
+ * If the plugin is not active for the network, add subsite paths not
+ * to be cached
+ * 
+ * @note: need the blog id, not sure if it's passed here
+ */ 
+    public static function newMpmuSite($domain, $path){
+        /*$options = self::getOptions();
+        GatorCache::getOptions(self::PREFIX . '_opts', self::$defaults);*/
+        return true;
     }
 
     public static function addOptMenu(){
@@ -253,28 +283,28 @@ class WpGatorCache
         }
         $options = self::getOptions();
         //install create cache dir
-        if(is_dir($path = self::getInitDir(isset($_POST['ndoc_root']) && '1' === $_POST['ndoc_root']))){
-            if(!@is_writable($path)){
-                $error = sprintf(__('Error [101]: Cache Directory [%s] is not writable, please change permissions.', 'gatorcache'), $path);
-                GatorCache::getJsonResponse()->setParam('error', $error)->setParam('code', '101')->send();
-            }
-            $msg = __('Cache directory exists, proceeding to Step 2', 'gatorcache');
+        if(is_dir($path = self::getInitDir(isset($_POST['ndoc_root']) && '1' === $_POST['ndoc_root'])) && !@is_writable($path)){
+            $error = sprintf(__('Error [101]: Cache Directory [%s] is not writable, please change permissions.', 'gatorcache'), $path);
+            GatorCache::getJsonResponse()->setParam('error', $error)->setParam('code', '101')->send();
         }
-        else{
-            if(false === @mkdir($path, 0755)){
-                $error = __('Error [100]: Cache Directory could not be created', 'gatorcache');
-                GatorCache::getJsonResponse()->setParam('error', $error)->setParam('code', '100')->send();
-            }
+        elseif((!is_dir($path = self::getInitDir(true)) || !@is_writable($path)) && false === @mkdir($path, 0755)){//maybe a reinstall in doc root
+            $error = __('Error [100]: Cache Directory could not be created', 'gatorcache');
+            GatorCache::getJsonResponse()->setParam('error', $error)->setParam('code', '100')->send();
         }
         //cache dir created or exists - get the group for subdir support or people that put blogs in the doc root
         if(false === ($url = parse_url($siteurl = get_option('siteurl')))){
-            $error = sprintf(__('Error [105]: Could not parse site url setting [%s], please check Wordpress configuration.', 'gatorcache'), $siteurl);
+            $error = sprintf(__('Error [105]: Could not parse site url setting [%s], please check WordPress configuration.', 'gatorcache'), $siteurl);
             GatorCache::getJsonResponse()->setParam('error', $error)->send();
         }
-        //new with ver 1.1, move config to Wordpress_dir
-        if(!is_file(self::$configPath) && !self::copyConfigFile(ABSPATH)){
-            $error = sprintf(__('Error [106]: Could not copy config file to your Wordpress directory [%s], please check permissions.', 'gatorcache'), ABSPATH);
+        //initial config
+        if(!self::copyConfigFile()){
+            $error = sprintf(__('Error [106]: Could not copy config file to your WordPress directory [%s], please check permissions.', 'gatorcache'), ABSPATH);
             GatorCache::getJsonResponse()->setParam('error', $error)->send();
+        }
+        //multisite support
+        if(is_multisite() && !self::checkBlogConfig()){
+            $error = sprintf(__('Error [112]: Could not copy multisite config file to your WordPress directory [%s], please check permissions.', 'gatorcache'), ABSPATH);
+            GatorCache::getJsonResponse()->setParam('error', $error)->send(); 
         }
         if(!self::saveCachePath($path, $url)){//1.42 save host
             $error = sprintf(__('Error [102]: Could not write to config file [%s], please check permissions.', 'gatorcache'), self::$configPath);
@@ -385,7 +415,7 @@ class WpGatorCache
                 $update = true;
             break;
             case 'gci_del':
-                $result = GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray())->purge($opts['group']);
+                $result = GatorCache::purgeCache(self::$configPath);
                 if(!$options['skip_ssl']){//purge the ssl cache
                     GatorCache::getCache($opts)->purge('ssl@' . $opts['group']);
                 }
@@ -685,14 +715,33 @@ class WpGatorCache
         return empty($status);
     }
 
+    public static function getWebUser($name = true){
+        if(!isset(self::$webUser)){
+            if(function_exists('posix_geteuid')){
+                $user = posix_getpwuid(posix_geteuid());
+                $group = posix_getgrgid($user['gid']);
+                self::$webUser = array('user' => $user['name'], 'group' => $group['name']);
+            }
+            else{
+                $user = get_current_user();
+                self::$webUser =  array('user' => $user, 'group' => $user);
+            }
+        }
+        return $name ? self::$webUser['user'] : self::$webUser['group'];
+    }
+
     protected static function getOptions(){
         if(isset(self::$options)){
             return self::$options;
         }
         require_once((self::$path = plugin_dir_path(__FILE__)) . 'lib/GatorCache.php');
-        self::$configPath = ABSPATH . 'gc-config.ini.php';//has to go here in case if subdir hosts
+        self::$configPath = self::getConfigPath();
         //rather than implementing arrayaccess
         return self::$options = GatorCache::getOptions(self::PREFIX . '_opts', self::$defaults)->toArray();
+    }
+
+    protected static function getConfigPath(){
+        return ABSPATH . (is_multisite() ? 'gc-config-' . get_current_blog_id() . '.ini.php' : 'gc-config.ini.php');//has to go here in case if subdir hosts
     }
 
     protected static function hasPathExclusion($path){
@@ -705,8 +754,20 @@ class WpGatorCache
         return false;
     }
 
-    protected static function copyConfigFile($configDir){
-        return false !== @copy(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.ini.php',  $configDir . 'gc-config.ini.php');
+    protected static function copyConfigFile(){
+        $source = self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.ini.php';
+        if(!is_file($configPath = self::getConfigPath())){//|| md5_file($source) !==  md5_file($configPath)
+            if(false === @copy($source,  $configPath)){
+                return false;
+            }
+            //prevent direct access to cache files
+            file_put_contents($configPath . DIRECTORY_SEPARATOR . '.htaccess', "Order Deny,Allow\nDeny from all\nAllow from env=redirect_gc_green\n");
+        }
+        return true;
+    }
+
+    protected static function checkBlogConfig(){
+        return (false !== GatorCache::getBlogMap()) || @touch(GatorBlogMap::getPath());
     }
 
     protected static function saveCachePath($path, $url){
@@ -714,15 +775,37 @@ class WpGatorCache
             return false;
         }
         global $wp_rewrite;
-        $group = str_replace('.', '-', $url['host']) . (empty($url['path']) || '/' === $url['path'] ? '' : str_replace('/', '-', $url['path']));
+        //$group = str_replace('.', '-', $url['host']) . (empty($url['path']) || '/' === $url['path'] ? '' : str_replace('/', '-', $url['path']));
+        //for easier http rules $group = $url['host']
         $config->set('cache_dir', $path);
-        $config->set('group', $group);
+        $config->set('group', $url['host']);
         $config->set('host', $url['host']);
         if(false !== ($secureHost = self::setSecureHost(false))){
             $config->set('secure_host', $secureHost);
         }
         $config->set('dir_slash', isset($wp_rewrite->use_trailing_slashes) && $wp_rewrite->use_trailing_slashes);
+        if(is_multisite()){
+            GatorCache::getBlogMap()->saveBlogId(self::getMultiHost($url), get_current_blog_id());
+        }
         return $config->write();
+    }
+
+    protected static function getMultiHost($url){
+        $host = $url['host'];
+        if(!is_subdomain_install() && !empty($url['path']) && '/' !== $url['path']){
+            $host .= $url['path'];
+        }
+        return $host;
+    }
+
+    protected static function isMultiSubPath($path){
+        foreach(self::$options['multisite_paths'] as $subPath){
+            if(0 === strpos($path, $subPath)){
+                return true;
+                break;
+            }
+        }
+        return false;
     }
 
     protected static function getRefreshPosts($post, $isNew){
@@ -805,7 +888,7 @@ class WpGatorCache
         $lines = array_merge(
             array_slice($lines, 0, $pos), array('define(\'WP_CACHE\', '. ($wp_cache ? 'true' : 'false') .');' . PHP_EOL), array_slice($lines, $pos)
         );
-        return @file_put_contents($file, $lines);
+        return false !== @file_put_contents($file, $lines);
     }
 
     static public function filterWidgets($name){
@@ -838,11 +921,11 @@ class WpGatorCache
 
     protected static function getSupportInfo(){
         return '<textarea style="background:cyan;width:100%;" rows="6">
-Wordpress: ' . get_bloginfo('version') . ' 
+WordPress: ' . get_bloginfo('version') . ' 
 PHP: ' . phpversion() . '
 Handler: ' . php_sapi_name() . '
 System: ' . php_uname() . '
-Web User: ' . get_current_user() . '
+Web User: ' . self::getWebUser() . '
 Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.ini.php') ? 'Yes' : 'No') . '
 </textarea>';
         //Path: ' . $path; echo var_export($options);echo var_export($config->toArray());
@@ -888,7 +971,7 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
             //attempt to repair
             if(!($wpCache = self::saveWpConfig()) || !self::copyAdvCache()){
                 if(!$wpCache){
-                    $msg = __('Your Wordpress configuration file could not be updated.', 'gatorcache');
+                    $msg = __('Your WordPress configuration file could not be updated.', 'gatorcache');
                     $code = '109';
                 }
                 else{
@@ -914,6 +997,59 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
         global $wp_rewrite;//make sure these match
         if($config->get('dir_slash') != ($dirSlash = (isset($wp_rewrite->use_trailing_slashes) && $wp_rewrite->use_trailing_slashes))){
             $config->save('dir_slash', $dirSlash);
+        }
+        //url checks
+        $url = parse_url(get_option('siteurl'));
+        //multisite
+        if(is_multisite()){
+            if(!self::checkBlogConfig()){//no file and couldn't create
+                $msg = __('Your multisite blog configuration file could not be created.', 'gatorcache');
+                GatorCache::getNotices()->add($msg, '112');
+                return false;
+            }
+            //verify the host and reset if not matching
+            $host = self::getMultiHost($url);
+            if($host !== GatorCache::getBlogMap()->getHost($blogId = get_current_blog_id())){
+                GatorCache::getBlogMap()->saveBlogId($host, $blogId);
+            }
+            //refresh sub blog exclusions if applicable
+            /*if(!is_subdomain_install() && is_main_site($blogId)){
+                //@note more effecient to query db that to use wp_get_sites (wp >= 3.7)  
+                global $wpdb;
+                if(null === ($sites = $wpdb->get_results('select * from ' . $wpdb->prefix . 'blogs where site_id = ' . $blogId . ' and blog_id != ' . $blogId . ' order by blog_id limit 0, 10000', 'ARRAY_A'))){
+                    $sites = array();
+                }
+                $paths = array();
+                foreach($sites as $site){
+                    if('0' === $site['deleted'] && '' !== $site['path'] && '/' !== $site['path']){
+                        $paths[$site['blog_id']] = $site['path'];
+                    }
+                }
+                if(!empty($paths)){
+                    if($paths !== $options['multisite_paths']){
+                        GatorCache::getOptions()->save('multisite_paths', $paths);
+                    }
+                }
+                elseif(false !== $options['multisite_paths']){
+                    GatorCache::getOptions()->save('multisite_paths', false);
+                }
+            }*/
+        }
+        //@note an upgrade can move the cache dir
+        if($config->get('group') !== $url['host']){
+            $config->save('group', $url['host']);
+        }
+        if(!empty($url['path']) && '/' !== $url['path']){
+            if('/' === substr($url['path'], -1)){
+                $url['path'] = rtrim($url['path'], '/');
+            }
+            if($url['path'] !== $config->get('path')){
+                $config->save('path', $url['path']);
+            }
+        }
+        elseif(false !== $config->get('path')){
+            $config->remove('path');
+            $config->write();
         }
         return true;
     }

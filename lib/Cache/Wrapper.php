@@ -84,8 +84,8 @@ class Cache_Wrapper
         return $this->cache->has($id, $group);
     }
 
-    public function purge($group = 'page'){
-        return $this->cache->clean($group);
+    public function purge($group = 'page', $path = null){
+        return $this->cache->clean($group, $path);
     }
 
     public function remove($id, $group = 'page', $check=false){
