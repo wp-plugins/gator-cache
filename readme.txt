@@ -4,7 +4,7 @@ Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce, multisite
 Requires at least: 3.6
 Tested up to: 3.8.1
-Stable tag: 1.51
+Stable tag: 1.52
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -44,10 +44,13 @@ No, GatorCache does not write to your htaccess. However, recommended Apache rewr
 
 == Changelog ==
 
+= 1.52 =
+* Resolves conflict with NextGen Gallery buffering
+* Allows choice of cache directory location during install
+* Fixes bug with certain settings that can display cached pages for logged in users
 = 1.51 =
 * Adds WordPress Multisite support
 * Improved recommended Apache http cache rewrite rules
-
 = 1.48 =
 * Maintenance release for http caching
 * Corrects the cache path in the recommended Apache rewrite rules

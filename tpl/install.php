@@ -6,20 +6,22 @@ if($notices->has()){?>
   <div class="updated">
     <p><strong><?php _e('Error Code')?> <?php echo $notices->get()->getCode();?></strong>: <?php echo $notices->get()->getMessage();?> <strong><?php _e('Re-installation Required')?></strong></p>
   </div>
-<?php }?>
+<?php }
+$cacheDir = self::getInitDir();?>
 <div class="wrap">
   <h2>Gator Cache <?php _e('Installation', 'gatorcache');?></h2>
   <h3><?php _e('Gator Cache Installation', 'gatorcache');?></h3>
   <div id="gci_result" style="display:none;margin:1em 0;color:forestgreen;font-weight:600"></div>
   <form id="gci_install" method="post" action="">
     <div id="step_1">
-      <label><?php printf('<strong>%s</strong>) %s', __('Install', 'gatorcache'), __('Create Cache Directory', 'gatorcache'));?>:</label> <strong><?php echo($cacheDir = self::getInitDir());?></strong>*
-      <input type="submit" id="gci_btn" name="gci_btn" class="button-primary" style="margin: 1em 0 1em 1em" value="Install"/>
+      <label><?php printf('<strong>%s</strong>) %s', __('Install', 'gatorcache'), __('Create Cache Directory and Copy Files', 'gatorcache'));?></label>
+      <input type="submit" id="gci_btn" name="gci_btn" class="button-primary" style="margin: 1em 0 1em 1em" value="Install"/><br/>
+      <input type="checkbox" id="in_root" name="in_root" value="1"/> <label for="in_root"><?php _e('Create Cache Directory In Document Root', 'gatorcache');?>
+      <p><i class="fa fa-info-circle"></i> <?php _e('Creating the cache directory in the document root is necessary in many shared hosting environments.', 'gatorcache');?></p>
       <p id="block_inroot" style="display:none">
-        <span style="display:block;margin 1em 0;color:firebrick;font-weight:600"><?php _e('Gator Cache could not create your cache directory, please manually create the directory shown in the path above. If your hosting is set up to only allow document root access, check the box below to create the cache directory in your document root.', 'gatorcache');?></span></br>
-        <input type="checkbox" id="in_root" name="in_root" value="1"/> <label for="in_root"><?php _e('Create Cache Directory In Document Root.', 'gatorcache');?></label>
+        <span style="display:block;margin 1em 0;color:firebrick;font-weight:600"><?php _e('Gator Cache could not create your cache directory, please manually create the directory shown in the path above. If your hosting is set up to only allow document root access, check the box above to create the cache directory in your document root.', 'gatorcache');?></span></br>
       </p>
-      <p>*<?php _e('Gator Cache will attempt to install your cache directory parallel to your document root, if it does not already exist.', 'gatorcache');?></p>
+      <p><i class="fa fa-info-circle"></i> <?php _e('Gator Cache will attempt to install your cache directory parallel to your document root, if it does not already exist.', 'gatorcache');?></p>
     </div>
   </form>
   <script type="text/javascript">
@@ -61,8 +63,6 @@ if($notices->has()){?>
   </script>
   <h2><?php _e('Troubleshooting Code Reference Guide', 'gatorcache');?></h3>
   <p><strong><?php _e('Tech Support', 'gatorcache');?></strong>: <strong><a href="http://gatordev.com/support/forum/gator-cache/" target="_blank">http://gatordev.com/support/forum/gator-cache/</a></strong></p>
-  <p><?php _e('Tech Support Information:', 'gatorcache');?>
-  <p><?php echo self::getSupportInfo();?></p>
   <p><span style="background:gold"><strong>100</strong> <em><?php _e('Cache Directory could not be created', 'gatorcache');?></em></span> - <?php printf('Manually create the cache directory, <strong>%s</strong>. Change the ownership to <strong>%s</strong>. If this is not possible with your hosting, the permissions can be set to "0777" with your ftp client or file manager.', $cacheDir, $webUser = self::getWebUser());?></p>
   <p><span style="background:gold"><strong>101</strong> <em><?php _e('Cache Directory is not writable', 'gatorcache');?></em></span>  - <?php _e('Change the ownership or permissions as mentioned in Error Code 100.', 'gatorcache');?></p>
   <p><span style="background:gold"><strong>102</strong> <em><?php _e('The Gator Cache config file is not writable', 'gatorcache');?></em></span>  - <?php printf('Change the ownership of <strong>%s</strong> to <strong>%s</strong>. If this is not possible with your hosting, the file permissions should be set to "0777".', ABSPATH . 'gc-config.ini.php', $webUser);?></p>
@@ -76,4 +76,6 @@ if($notices->has()){?>
   <p><span style="background:gold"><strong>112</strong> <em><?php _e('Could not create multisite config file to your WordPress directory', 'gatorcache');?></em></span>  - <?php _e('Manually create the multisite configuration file and change permissions:', 'gatorcache');?><br/>
     <code style="white-space:pre-line;padding-left:0"><?php echo "# touch " .  ($configPath = ABSPATH . 'gc-blogs.ini.php') . "\n# chown -R " . $webUser . ':' . self::getWebUser(false) . ' ' . $configPath;?></code>
   </p>
+  <p><?php _e('Tech Support Information:', 'gatorcache');?>
+  <p><?php echo self::getSupportInfo();?></p>
 </div>

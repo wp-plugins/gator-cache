@@ -6,10 +6,12 @@ if(!defined('ABSPATH') || is_admin() || (defined('WP_INSTALLING') && WP_INSTALLI
   || !$config->get('enabled')){
     return;
 }
-if(!defined('GC_CHK_USER') && $config->get('skip_user')){
+if(!defined('GC_CHK_USER')){
     for($ct = count($cookies = array_reverse(array_keys($_COOKIE))),$xx=0;$xx<$ct;$xx++){
         if(0 === strpos($cookies[$xx], 'wordpress_logged_in')){
-            define('GC_CHK_USER', true);
+            if($config->get('skip_user')){//skip_user prevents any more user checks if exclusions are empty
+                define('GC_CHK_USER', true);
+            }
             return;
         }
         if(0 === strpos($cookies[$xx], 'comment_author')){

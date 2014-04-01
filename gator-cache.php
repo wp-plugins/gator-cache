@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.51
+ * @version 1.52
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.51
+Version: 1.52
 */
 class WpGatorCache
 {
@@ -40,7 +40,7 @@ class WpGatorCache
     protected static $sslHandler;
     protected static $webUser;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.51';
+    const VERSION = '1.52';
 
     public static function initBuffer(){
         $options = self::getOptions();
@@ -192,6 +192,10 @@ class WpGatorCache
                 self::copyAdvCache();//advanced cache changed with this version
                 $wpConfig->set('version', self::$options['version'] = self::VERSION);
             }
+            elseif(1.52 > $version){//fixes issue in advanced cache recopy
+                self::copyAdvCache();
+                $wpConfig->set('version', self::$options['version'] = self::VERSION);
+            }
             else{//nothing to see here, store the version
                 $wpConfig->set('version', self::$options['version'] = self::VERSION);
             }
@@ -283,13 +287,20 @@ class WpGatorCache
         }
         $options = self::getOptions();
         //install create cache dir
-        if(is_dir($path = self::getInitDir(isset($_POST['ndoc_root']) && '1' === $_POST['ndoc_root'])) && !@is_writable($path)){
-            $error = sprintf(__('Error [101]: Cache Directory [%s] is not writable, please change permissions.', 'gatorcache'), $path);
-            GatorCache::getJsonResponse()->setParam('error', $error)->setParam('code', '101')->send();
+        if(is_dir($path = self::getInitDir(false)) || is_dir($path = self::getInitDir(true))){//cache dir already exists
+            if(!@is_writable($path)){
+                $error = sprintf(__('Error [101]: Cache Directory [%s] is not writable, please change permissions.', 'gatorcache'), $path);
+                GatorCache::getJsonResponse()->setParam('error', $error)->setParam('code', '101')->send();
+            }
         }
-        elseif((!is_dir($path = self::getInitDir(true)) || !@is_writable($path)) && false === @mkdir($path, 0755)){//maybe a reinstall in doc root
-            $error = __('Error [100]: Cache Directory could not be created', 'gatorcache');
-            GatorCache::getJsonResponse()->setParam('error', $error)->setParam('code', '100')->send();
+        else{//create
+            $path = self::getInitDir(isset($_POST['ndoc_root']) && '1' === $_POST['ndoc_root']);
+            if(false === @mkdir($path, 0755) || !@is_writable($path)){//maybe a reinstall in doc root
+                $error = __('Error [100]: Cache Directory could not be created', 'gatorcache');
+                GatorCache::getJsonResponse()->setParam('error', $error)->setParam('code', '100')->send();
+            }
+            //put htaccess here to prevent direct access
+            @file_put_contents($path . DIRECTORY_SEPARATOR . '.htaccess', "Order Deny,Allow\nDeny from all\nAllow from env=redirect_gc_green\n");
         }
         //cache dir created or exists - get the group for subdir support or people that put blogs in the doc root
         if(false === ($url = parse_url($siteurl = get_option('siteurl')))){
@@ -760,8 +771,6 @@ class WpGatorCache
             if(false === @copy($source,  $configPath)){
                 return false;
             }
-            //prevent direct access to cache files
-            file_put_contents($configPath . DIRECTORY_SEPARATOR . '.htaccess', "Order Deny,Allow\nDeny from all\nAllow from env=redirect_gc_green\n");
         }
         return true;
     }
@@ -891,8 +900,12 @@ class WpGatorCache
         return false !== @file_put_contents($file, $lines);
     }
 
-    static public function filterWidgets($name){
+    public static function filterWidgets($name){
         return 0 === strpos($name, 'recent') && false === strpos($name, 'recently') && false === strpos($name, 'comments');
+    }
+
+    public static function filterNggBuffer($valid){
+        return false;
     }
 
     protected static function hasRecentWidgets(){
@@ -1159,3 +1172,4 @@ add_action('transition_comment_status', 'WpGatorCache::saveComment', 11, 3);
 add_action('wp_insert_comment', 'WpGatorCache::postComment', 10, 2);
 add_action('edit_comment', 'WpGatorCache::postComment');
 add_filter('comment_cookie_lifetime', 'WpGatorCache::filterCookieLifetime', 11111);
+add_filter('run_ngg_resource_manager', 'WpGatorCache::filterNggBuffer', 99999);
