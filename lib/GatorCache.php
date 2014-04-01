@@ -24,6 +24,7 @@ class GatorCache
     protected static $cache;
     protected static $request;
     protected static $config;
+    protected static $blogMap;
     protected static $options;
     protected static $notices;
 
@@ -46,16 +47,28 @@ class GatorCache
     public static function getConfig($path, $chkPath = false){
         if(!isset(self::$config)){
             require_once(dirname(__FILE__) . '/Config/Lite.php');
-            try{
-                $config = new Config_Lite($path, array('cache_dir' => '/tmp'), $chkPath);
-            } catch (Exception $e){
-                if($chkPath){
-                    return false;
-                }
+            if(false === ($config = self::loadConfig($path, $chkPath)) && $chkPath){
+                return false;
             }
             self::$config = $config;
         }
         return self::$config;
+    }
+
+    public static function purgeCache($configPath){
+        return self::getCache($opts = self::getConfig($configPath)->toArray())->purge($opts['group'], isset($opts['path']) ? $opts['path'] : null);
+    }
+
+    public static function getBlogMap(){
+        if(!isset(self::$blogMap)){
+            require_once(($dir = dirname(__FILE__)) . '/Config/Lite.php');
+            require_once($dir . '/GatorBlogMap.php');
+            if(false === ($config = self::loadConfig(GatorBlogMap::getPath(), true))){
+                return false;
+            }
+            self::$blogMap = new GatorBlogMap($config, self::getRequest());
+        }
+        return self::$blogMap;
     }
 
     public static function getOptions($key, array $defaults = null){
@@ -78,5 +91,18 @@ class GatorCache
     public static function getJsonResponse(){
         require_once(($dir = dirname(__FILE__)) . '/JqJsonResponse.php');
         return new JqJsonResponse();
+    }
+
+    protected static function loadConfig($path, $chkPath){
+        require_once(dirname(__FILE__) . '/Config/Lite.php');
+        try{
+            $config = new Config_Lite($path, array('cache_dir' => '/tmp'), $chkPath);
+        }
+        catch (Exception $e){
+            if($chkPath){
+                return false;
+            }
+        }
+        return $config;
     }
 }

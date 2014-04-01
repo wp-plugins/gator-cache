@@ -1,26 +1,27 @@
 === Gator Cache ===
 Contributors: GatorDog
 Donate link: http://gatordev.com/gator-cache
-Tags: cache, performance, bbpress, woocommerce
+Tags: cache, performance, bbpress, woocommerce, multisite
 Requires at least: 3.6
 Tested up to: 3.8.1
-Stable tag: 1.47
+Stable tag: 1.52
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-A better, stronger, faster page cache for Wordpress. Performance that's easy to manage.
+A better, stronger, faster page cache for WordPress. Performance that's easy to manage.
 
 == Description ==
 
-Gator Cache is an easy to manage page cache for Wordpress. Once installed, it automatically updates new and updated content in your cache. This keeps your website fresh while adding the superior performance advantage of a cache. Key features are as follows:
+Gator Cache is an easy to manage page cache for WordPress. Once installed, it automatically updates new and updated content in your cache. This keeps your website fresh while adding the superior performance advantage of a cache. Key features are as follows:
 
 *   Greatly increases site performance by adding a page cache
 *   Automatic update of cache when content is published or updated
 *   Automatic update of cache when comments are approved
 *   Compatible with WooCommerce, will not cache mini-cart in page
 *   Compatible with bbPress, updates when topics, replies, etc are added
-*   Compatible with Wordpress HTTPS, will cache pages secured by the plugin when applicable
-*   Posts can be cached for logged-in Wordpress users by role. You can cache pages for Subscribers, Customers or other roles while skipping the cache for Administrators.
+*   Compatible with WordPress HTTPS, will cache pages secured by the plugin when applicable
+*   Compatible with WordPress Multisite
+*   Posts can be cached for logged-in WordPress users by role. You can cache pages for Subscribers, Customers or other roles while skipping the cache for Administrators.
 *   Http caching supported with Apache and Nginx
 
 == Screenshots ==
@@ -35,8 +36,24 @@ Gator Cache is an easy to manage page cache for Wordpress. Once installed, it au
 4. Click Install to perform the automated installation process
 5. Check the "enabled" box and update your general settings
 
+== Frequently Asked Questions ==
+
+= Does GatorCache write to my htaccess file? =
+
+No, GatorCache does not write to your htaccess. However, recommended Apache rewrite rules are provided, based on your settings, that you can copy and paste to your htaccess file to enable http caching.
+
 == Changelog ==
 
+= 1.52 =
+* Resolves conflict with NextGen Gallery buffering
+* Allows choice of cache directory location during install
+* Fixes bug with certain settings that can display cached pages for logged in users
+= 1.51 =
+* Adds WordPress Multisite support
+* Improved recommended Apache http cache rewrite rules
+= 1.48 =
+* Maintenance release for http caching
+* Corrects the cache path in the recommended Apache rewrite rules
 = 1.47 =
 * Maintenance release WooCommerce 2.1 compatibility
 * Resolves conflict with WooCommerce registering chosen.js (enhanced selects) out of context
@@ -66,7 +83,7 @@ Gator Cache is an easy to manage page cache for Wordpress. Once installed, it au
 * Maintenance release for 1.31
 * Replace php short tags which may cause fatal errors on some php configurations
 = 1.31 =
-* Adds support for caching SSL pages and the Wordpress HTTPS plugin
+* Adds support for caching SSL pages and the WordPress HTTPS plugin
 = 1.20 =
 * Adds the ability to exclude custom directories and pages
 = 1.11 =
@@ -78,3 +95,8 @@ Gator Cache is an easy to manage page cache for Wordpress. Once installed, it au
 * Performance optimizations
 = 1.0 =
 * Initial Release.
+
+== Upgrade Notice ==
+
+= 1.51 =
+If you have Gator Cache http rules in your htaccess file, you will need to update your htaccess file slightly for http caching.

@@ -62,7 +62,7 @@ if(isset($postTypes['wooframework'])){//woothemes
   </form>
 <p><i class="fa fa-info-circle"></i> <?php _e('If you are running a plugin that is not cache friendly or there are certain directories or dynamic pages that should never be cached you may add those here and they will be excluded from your cache.', 'gatorcache');?></p>
 <?php if(defined('WOOCOMMERCE_VERSION')){?>
-  <p><i class="fa fa-info-circle"></i> <?php printf(__('You do not need to exclude %s cart, checkout or account paths. WooCommerce has built-in support for Wordpress page caching.', 'gatorcache'), '<em><strong>WooCommerce</strong></em>');?></p>
+  <p><i class="fa fa-info-circle"></i> <?php printf(__('You do not need to exclude %s cart, checkout or account paths. WooCommerce has built-in support for WordPress page caching.', 'gatorcache'), '<em><strong>WooCommerce</strong></em>');?></p>
 <?php }?>
 </div>
 <div id="tabs-6">
@@ -122,22 +122,21 @@ if(!empty($postTypes)){?>
 </ol>
   </form>
 <?php if(is_plugin_active('wordpress-https/wordpress-https.php')){?>
-  <p><i class="fa fa-info-circle"></i> <?php printf(__('When SSL is enabled, Gator Cache is compatible with %s and will cache the pages it secures.', 'gatorcache'), '<em><strong>Wordpress HTTPS</strong></em>');?></p>
+  <p><i class="fa fa-info-circle"></i> <?php printf(__('When SSL is enabled, Gator Cache is compatible with %s and will cache the pages it secures.', 'gatorcache'), '<em><strong>WordPress HTTPS</strong></em>');?></p>
 <?php }?>
 </div>
 <div id="tabs-5">
   <form id="gci_http" method="post" action="" autocomplete="off">
     <p><?php _e('Recommended webserver rules for http caching.', 'gatorcache');?></p>
     <p class="bmpTxt"><?php _e('Apache Rules:', 'gatorcache');?></p>
-    <?php $groupDir = $config->get('group');$warnLink = __('see below', 'gatorcache');
+<?php $warnLink = __('see below', 'gatorcache');
 if(!strstr($cacheDir = $config->get('cache_dir'), ABSPATH)){//cache dir is parallel to doc root, recommended?>
 <p><i class="fa fa-info-circle"></i> <?php _e('Add these rules to your apache virtual hosts config file.', 'gatorcache');?></p>
 <p><i class="fa fa-exclamation-triangle"></i> <?php _e('These rules will not work in your htaccess file.', 'gatorcache');?></p>
 <p><i class="fa fa-question-circle"></i> <?php printf(__('If you do not have access to your apache config, you can move your cache directory to support HTTP caching (%s).', 'gatorcache'), '<a href="#moveCache">' . $warnLink . '</a>');?></p>
-<textarea rows="<?php echo($options['skip_ssl'] ? '40' : '58');?>">
-# Important - Alias the cache directory
-<?php echo 'Alias /gator_cache/ "' . $cacheDir . '/' . $groupDir . '/"
-';
+<textarea rows="<?php echo($options['skip_ssl'] ? '41' : '59');?>">
+# Important - Alias the cache directory (outside of virtual host directory block)
+<?php echo 'Alias /gator_cache/ "' . $cacheDir . '/"' . "\n\n";
 include self::$path . 'tpl' . DIRECTORY_SEPARATOR . 'http-rules.php';?>
 </textarea>
     <p class="result"></p>
@@ -145,7 +144,7 @@ include self::$path . 'tpl' . DIRECTORY_SEPARATOR . 'http-rules.php';?>
     <a name="moveCache"></a>
 <?php }
 else{?>
-<p><i class="fa fa-info-circle"></i> <?php _e('Copy this block to the very top of your .htaccess above the Wordpress rules. Remove any other caching plugin rules.', 'gatorcache');?></p>
+<p><i class="fa fa-info-circle"></i> <?php _e('Copy this block to the very top of your .htaccess above the WordPress rules. Remove any other caching plugin rules.', 'gatorcache');?></p>
 <textarea rows="<?php echo($options['skip_ssl'] ? '38' : '56');?>"><?php include self::$path . 'tpl' . DIRECTORY_SEPARATOR . 'http-rules.php';?></textarea>
 <?php }?>
   </form>
@@ -153,8 +152,8 @@ else{?>
 <div id="tabs-4">
   <form id="gci_usr" method="post" action="" autocomplete="off">
     <p class="result"></p>
-    <p><?php _e('By default, cached pages are not served to logged-in Wordpress Users.', 'gatorcache');?></p>
-    <p><label for="gci_roles"><?php _e('Cache Pages for the following Wordpress User Roles:', 'gatorcache');?></label></p>
+    <p><?php _e('By default, cached pages are not served to logged-in WordPress Users.', 'gatorcache');?></p>
+    <p><label for="gci_roles"><?php _e('Cache Pages for the following WordPress User Roles:', 'gatorcache');?></label></p>
     <p>
       <select id="gci_roles" style="width:350px;height:24px" data-placeholder="<?php _e('Select User Roles', 'gatorcache');?>" multiple class="chosen">
 <?php
@@ -232,7 +231,7 @@ if(empty($postTypes)){?>
   </p>
   <p><button class="button-primary"><?php _e('Update', 'gatorcache');?></button></p>
 <?php }?>
-  <p>*<?php _e('In addition to your regular Wordpress posts and pages, you may cache other post types as well, eg WooCommerce Products.', 'gatorcache');?></p>
+  <p>*<?php _e('In addition to your regular WordPress posts and pages, you may cache other post types as well, eg WooCommerce Products.', 'gatorcache');?></p>
 <?php if($isBbPress){?>
   <p><i class="fa fa-info-circle"></i> <?php printf(__('Selecting %s will cache your Forums and Topics. They will always be fresh, since Gator Cache automatically refreshes when topics are added or replies are posted.', 'gatorcache'), '<em><strong>bbPress</strong></em>');?></p>
 <?php }?>

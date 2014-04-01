@@ -1,14 +1,17 @@
 <?php
 if(!defined('ABSPATH') || is_admin() || (defined('WP_INSTALLING') && WP_INSTALLING)
   || false === (@include_once(WP_CONTENT_DIR . '/plugins/gator-cache/lib/GatorCache.php'))//for some reason this needs parens
-  || false === ($config = GatorCache::getConfig(ABSPATH . 'gc-config.ini.php', true))
+  || (($isMulti = is_multisite()) && (false === ($blogMap = GatorCache::getBlogMap()) || false === ($blogId = $blogMap->getBlogId())))
+  || false === ($config = GatorCache::getConfig($path = ABSPATH . ($isMulti ? 'gc-config-' . $blogId . '.ini.php' : 'gc-config.ini.php'), true))
   || !$config->get('enabled')){
     return;
 }
-if(!defined('GC_CHK_USER') && $config->get('skip_user')){
+if(!defined('GC_CHK_USER')){
     for($ct = count($cookies = array_reverse(array_keys($_COOKIE))),$xx=0;$xx<$ct;$xx++){
         if(0 === strpos($cookies[$xx], 'wordpress_logged_in')){
-            define('GC_CHK_USER', true);
+            if($config->get('skip_user')){//skip_user prevents any more user checks if exclusions are empty
+                define('GC_CHK_USER', true);
+            }
             return;
         }
         if(0 === strpos($cookies[$xx], 'comment_author')){

@@ -2,7 +2,7 @@
 /**
  * Config_Wp
  * 
- * A configuration class that uses the built-in Wordpress option
+ * A configuration class that uses the built-in WordPress option
  * functionality for storage.
  * 
  * Copyright(c) 2013 Schuyler W Langdon

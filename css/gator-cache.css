@@ -7,7 +7,7 @@
 #ex_cust .fa-times-circle,#rf_cust .fa-times-circle {float:right;cursor:pointer;margin-top:2px}
 #ex_cust .button-primary,#rf_cust .button-primary {padding-left:5px}
 #gci_dir .button-primary i, #gci_dir .button-secondary i {margin-right:.25em}
-#gci_tabs .fa-info-circle{color:green;margin-right:.125em}
+#gci_tabs .fa-info-circle,#gci_install .fa-info-circle{color:green;margin-right:.125em}
 #gci_tabs .fa-question-circle{color:#E67E00;margin-right:.125em}
 #gci_tabs .fa-exclamation-triangle{color:firebrick;margin-right:.125em}
 #no_ex_dirs,#no_rf_dirs{display:none}
