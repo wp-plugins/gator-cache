@@ -1,7 +1,7 @@
 <?php if(!defined('ABSPATH') || !is_admin()){//no direct or frontend access
     exit;
 }
-$loading = site_url('/wp-includes/js/tinymce/themes/advanced/skins/default/img/progress.gif');
+$loading = site_url(version_compare(get_bloginfo('version'), '3.9', '>=') ? '/wp-includes/js/tinymce/skins/lightgray/img/loader.gif' : '/wp-includes/js/tinymce/themes/advanced/skins/default/img/progress.gif');
 if('' === get_option('permalink_structure')){
 ?>
 <div class="updated">
