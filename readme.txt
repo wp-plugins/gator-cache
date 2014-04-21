@@ -3,8 +3,8 @@ Contributors: GatorDog
 Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce, multisite
 Requires at least: 3.6
-Tested up to: 3.8.1
-Stable tag: 1.52
+Tested up to: 3.9
+Stable tag: 1.53
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -44,6 +44,9 @@ No, GatorCache does not write to your htaccess. However, recommended Apache rewr
 
 == Changelog ==
 
+= 1.53 =
+* Checks for users with multiple roles, such as BBPress roles, so content is not cached under certain GatorCache user settings
+* Compatibility with WordPress 3.9 verified
 = 1.52 =
 * Resolves conflict with NextGen Gallery buffering
 * Allows choice of cache directory location during install
