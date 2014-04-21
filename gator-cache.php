@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.52
+ * @version 1.53
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.52
+Version: 1.53
 */
 class WpGatorCache
 {
@@ -40,7 +40,7 @@ class WpGatorCache
     protected static $sslHandler;
     protected static $webUser;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.52';
+    const VERSION = '1.53';
 
     public static function initBuffer(){
         $options = self::getOptions();
@@ -95,10 +95,10 @@ class WpGatorCache
             return;
         }
         $options = self::getOptions();
-        if(!$options['enabled'] || !isset($user->roles) || !is_array($user->roles)){
+        if(!$options['enabled'] || empty($user->roles) || 1 < count($user->roles)){//no cache for mult user roles, this indicates custom role such as bbpress
             return;
         }
-        $cacheme = array_intersect($options['roles'], $user->roles);
+        $cacheme = array_intersect($options['roles'], (array)$user->roles);
         if(!empty($cacheme)){//serve the cache
             include(WP_CONTENT_DIR . '/advanced-cache.php');
         }
