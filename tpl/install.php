@@ -28,7 +28,7 @@ $cacheDir = self::getInitDir();?>
 (function($){
     $('#gci_install').submit(function(e){
         e.preventDefault();
-        $('#gci_result').html('<img src="<?php echo($loading = site_url('/wp-includes/js/tinymce/themes/advanced/skins/default/img/progress.gif'));?>"/>').show();
+        $('#gci_result').html('<img src="<?php echo($loading = site_url(version_compare(get_bloginfo('version'), '3.9', '>=') ? '/wp-includes/js/tinymce/skins/lightgray/img/loader.gif' : '/wp-includes/js/tinymce/themes/advanced/skins/default/img/progress.gif'));?>"/>').show();
         var form = $(this).serializeArray();
         form.push({'name':'action','value':'gcinstall'});
         if($('#in_root').prop('checked')){
