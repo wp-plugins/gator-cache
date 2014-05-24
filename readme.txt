@@ -4,7 +4,7 @@ Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce, multisite
 Requires at least: 3.6
 Tested up to: 3.9
-Stable tag: 1.54
+Stable tag: 1.55
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -44,6 +44,8 @@ No, GatorCache does not write to your htaccess. However, recommended Apache rewr
 
 == Changelog ==
 
+= 1.55 =
+* Maintenance release for purging cache and http rules. Delete the ssl cache, if it exists, when purging cache. Improve recommended http rules to avoid serving cache for POST and dynamic requests. 
 = 1.54 =
 * Maintenance release for new location of tinyMCE ajax loading image in WordPress 3.9
 = 1.53 =
