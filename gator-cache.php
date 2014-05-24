@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.54
+ * @version 1.55
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.54
+Version: 1.55
 */
 class WpGatorCache
 {
@@ -40,7 +40,7 @@ class WpGatorCache
     protected static $sslHandler;
     protected static $webUser;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.54';
+    const VERSION = '1.55';
 
     public static function initBuffer(){
         $options = self::getOptions();
@@ -428,6 +428,7 @@ class WpGatorCache
             case 'gci_del':
                 $result = GatorCache::purgeCache(self::$configPath);
                 if(!$options['skip_ssl']){//purge the ssl cache
+                    $opts = GatorCache::getConfig(self::$configPath)->toArray();
                     GatorCache::getCache($opts)->purge('ssl@' . $opts['group']);
                 }
                 if(!$result){
