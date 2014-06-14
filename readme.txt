@@ -4,7 +4,7 @@ Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce, multisite
 Requires at least: 3.6
 Tested up to: 3.9
-Stable tag: 1.55
+Stable tag: 1.56
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,7 @@ Gator Cache is an easy to manage page cache for WordPress. Once installed, it au
 *   Compatible with bbPress, updates when topics, replies, etc are added
 *   Compatible with WordPress HTTPS, will cache pages secured by the plugin when applicable
 *   Compatible with WordPress Multisite
+*   Compatible with JetPack Mobile Site
 *   Posts can be cached for logged-in WordPress users by role. You can cache pages for Subscribers, Customers or other roles while skipping the cache for Administrators.
 *   Http caching supported with Apache and Nginx
 
@@ -44,6 +45,9 @@ No, GatorCache does not write to your htaccess. However, recommended Apache rewr
 
 == Changelog ==
 
+= 1.56 =
+* Add support for JetPack Mobile Site
+* Added hook for caching user content
 = 1.55 =
 * Maintenance release for purging cache and http rules. Delete the ssl cache, if it exists, when purging cache. Improve recommended http rules to avoid serving cache for POST and dynamic requests. 
 = 1.54 =
