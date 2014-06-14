@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.55
+ * @version 1.56
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.55
+Version: 1.56
 */
 class WpGatorCache
 {
@@ -30,6 +30,8 @@ class WpGatorCache
         'skip_ssl' => true,
         'version' => false,
         'multisite_paths' => false,
+        'enable_hooks' => false,
+        'jp_mobile_cache' => false
     );
 
     protected static $options;
@@ -40,7 +42,8 @@ class WpGatorCache
     protected static $sslHandler;
     protected static $webUser;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.55';
+    const VERSION = '1.56';
+    const JP_MOBILE_MOD = 'minileven';//JetPack mobile module slug
 
     public static function initBuffer(){
         $options = self::getOptions();
@@ -53,12 +56,13 @@ class WpGatorCache
           || 'GET' !== $request->getMethod()
           || '' !== $request->getQueryString()
           || ('post' !== $post->post_type && 'page' !== $post->post_type && !in_array($post->post_type, self::getCacheTypes()))
-          || (defined('DOING_AJAX') && DOING_AJAX)
-          || is_admin() || is_user_logged_in()
+          || (defined('DOING_AJAX') && DOING_AJAX) || is_admin()
+          || (is_user_logged_in() && (!$options['enable_hooks'] || !self::cacheUserContent()))
           || '' === get_option('permalink_structure')
           || self::hasPathExclusion($path)
           || self::isWooCart()
           || isset($_COOKIE['comment_author_' . COOKIEHASH])
+          || (self::isJetPackMobileSite() && !$options['jp_mobile_cache'])
           //|| (false !== $options['multisite_paths'] && self::isMultiSubPath($request->getBasePath()))
           || ($request->isSecure() && ($options['skip_ssl'] || self::sslObHandlers()))){//obhandlers has to be last
               return;
@@ -141,15 +145,16 @@ class WpGatorCache
             $version = (float)$options['version'];
             $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
             if(1.11 > $version){//requires a reinstall
-                $wpConfig->set('installed', self::$options['installed'] = false);
-                $wpConfig->set('enabled', self::$options['enabled'] = false);
+                self::disableCache();
+                return;
             }
-            elseif(1.43 > $version){//do some upgradin
+            if(1.43 > $version){//do some upgradin
                 if(1.3 > $version){//ssl flag
                     GatorCache::getConfig(self::$configPath)->save('skip_ssl', true);
                 }
-                if(1.33 > $version && self::copyAdvCache()){
-                    $wpConfig->set('version', self::$options['version'] = self::VERSION);
+                if(1.33 > $version && !self::copyAdvCache()){
+                    self::disableCache();
+                    return;
                 }
                 if(1.41 > $version && isset($options['app_support']['bbpress']) && is_plugin_active('bbpress/bbpress.php')){//bbpress support changes
                     if(false !== ($key = array_search(bbp_get_topic_post_type(), $options['post_types']))){
@@ -162,14 +167,12 @@ class WpGatorCache
                         $options['post_types'][] = 'bbpress';
                         $wpConfig->set('post_types', self::$options['post_types'] = $options['post_types']);
                     }
-                    $wpConfig->set('version', self::$options['version'] = self::VERSION);
                 }
                 if(1.42 > $version){//set the host name
                     if(false !== ($url = parse_url(get_option('siteurl'))) && self::copyAdvCache()){
                         global $wp_rewrite;
                         GatorCache::getConfig(self::$configPath)->set('host', $url['host']);
                         GatorCache::getConfig(self::$configPath)->save('dir_slash', isset($wp_rewrite->use_trailing_slashes) && $wp_rewrite->use_trailing_slashes);
-                        $wpConfig->set('version', self::$options['version'] = self::VERSION);
                     }
                     else{//houston we have a problem
                         self::disableCache();
@@ -179,10 +182,9 @@ class WpGatorCache
                 if(1.43 > $version){//set the host name, new advanced cache
                     self::setSecureHost();
                     self::copyAdvCache();
-                    $wpConfig->set('version', self::$options['version'] = self::VERSION);
                 }
             }
-            elseif(1.51 > $version){//move the cache to new group which is host name
+            if(1.51 > $version){//move the cache to new group which is host name
                 $config = GatorCache::getConfig(self::$configPath);
                 if(@rename(($cacheDir = $config->get('cache_dir') . DIRECTORY_SEPARATOR) . $config->get('group'), $cacheDir . ($host = $config->get('host')))){
                     $config->save('group', $host);
@@ -190,15 +192,18 @@ class WpGatorCache
                     //@note copying cache security htaccess will cause 404 for http cache so do not include it here, in future put it in verify install
                 }
                 self::copyAdvCache();//advanced cache changed with this version
-                $wpConfig->set('version', self::$options['version'] = self::VERSION);
             }
-            elseif(1.52 > $version){//fixes issue in advanced cache recopy
+            if(1.52 > $version){//fixes issue in advanced cache recopy
                 self::copyAdvCache();
-                $wpConfig->set('version', self::$options['version'] = self::VERSION);
             }
-            else{//nothing to see here, store the version
-                $wpConfig->set('version', self::$options['version'] = self::VERSION);
+            if(1.56 > $version){
+                $config = GatorCache::getConfig(self::$configPath);
+                $config->set('jp_mobile', self::isJetPackMobile(false));
+                $config->set('jp_mobile_cache', false);
+                $config->write();
             }
+            //upgrades done or nothing to upgrade, update the version
+            $wpConfig->set('version', self::$options['version'] = self::VERSION);
             $wpConfig->write();
         }
         /*if(is_multisite() && !is_subdomain_install() && is_main_site(get_current_blog_id()) && !is_plugin_active_for_network(self::$path, 'gator-cache.php')){
@@ -445,10 +450,14 @@ class WpGatorCache
                     'all'     => isset($_POST['rf_all']) && '1' === $_POST['rf_all']
                 );
                 $skip_ssl = !isset($_POST['cache_ssl']) || '1' !== $_POST['cache_ssl'];
-                if($refresh !== $options['refresh'] || $skip_ssl !== $options['skip_ssl']){
+                $enable_hooks = isset($_POST['enable_hooks']) && '1' === $_POST['enable_hooks'];
+                $jp_mobile_cache = isset($_POST['jp_mobile_cache']) && '1' === $_POST['jp_mobile_cache'];
+                if($refresh !== $options['refresh'] || $skip_ssl !== $options['skip_ssl'] || $enable_hooks !== $options['enable_hooks'] || $jp_mobile_cache !== $options['jp_mobile_cache']){
                     $update = true;
                     $options['refresh'] = $refresh;
+                    $options['enable_hooks'] = $enable_hooks;
                     $options['skip_ssl'] = $cache['skip_ssl'] = $skip_ssl;
+                    $options['jp_mobile_cache'] = $cache['jp_mobile_cache'] = $jp_mobile_cache;
                 }
             break;
             case 'gci_gen':
@@ -1065,6 +1074,12 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
             $config->remove('path');
             $config->write();
         }
+        if(self::isJetPackMobile(false) && !$config->get('jp_moblie')){
+            $config->save('jp_mobile', true);
+        }
+        elseif($config->get('jp_moblie')){
+            $config->save('jp_mobile', false);
+        }
         return true;
     }
 
@@ -1136,6 +1151,21 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
             }
         }
         return false;
+    }
+
+    protected static function isJetPackMobile($skipSettings = true){//jetpack checks settings on frontend
+        return defined('JETPACK__VERSION') && false !== ($active = get_option('jetpack_active_modules')) && in_array(self::JP_MOBILE_MOD, $active) && ($skipSettings || '1' !== get_option('wp_mobile_disable'));
+    }
+
+    protected static function isJetPackMobileSite(){
+        return self::isJetPackMobile() && jetpack_check_mobile();
+    }
+
+    protected static function cacheUserContent(){
+        $user = wp_get_current_user();
+        $options = self::getOptions();
+        $cacheme = array_intersect($options['roles'], (array)$user->roles);
+        return !empty($cacheme) && apply_filters('gc_cache_user_content', false);
     }
 }
 //Hooks

@@ -68,7 +68,6 @@ if(isset($postTypes['wooframework'])){//woothemes
 <div id="tabs-6">
   <form id="gci_ref" method="post" action="" autocomplete="off">
     <p class="bmpTxt"><?php _e('Automatic refresh rules for posts, pages and selected custom post types:', 'gatorcache');?></p>
-    <p class="result"></p>
     <p>
       <input type="checkbox" name="rf_home" id="rf_home" value="1"<?php if($options['refresh']['home']){echo ' checked="checked"';}?>/> 
       <label for="rf_home"><?php _e('Refresh cached home page when posts are updated or newly published.', 'gatorcache');?></label> 
@@ -88,7 +87,22 @@ if(isset($postTypes['wooframework'])){//woothemes
       <input type="checkbox" name="cache_ssl" id="cache_ssl" value="1"<?php if(!$options['skip_ssl']){echo ' checked="checked"';}?>/> 
       <label for="cache_ssl"><?php _e('Cache secure SSL https protocol pages', 'gatorcache');?></label>
     </p>
-    <p><button class="button-primary"><?php _e('Update', 'gatorcache');?></button></p>
+<?php if(self::isJetPackMobile()){?>
+    <p class="bmpTxt"><?php _e('JetPack Mobile:', 'gatorcache');?></p>
+    <p>
+      <input type="checkbox" name="jp_mobile_cache" id="jp_mobile_cache" value="1"<?php if($options['jp_mobile_cache']){echo ' checked="checked"';}?>/> 
+      <label for="jp_mobile_cache"><?php _e('Cache JetPack Mobile Pages', 'gatorcache');?></label>
+    </p>
+<?php }?>
+    <p class="bmpTxt"><?php _e('Advanced Settings:', 'gatorcache');?></p>
+    <p>
+      <input type="checkbox" name="enable_hooks" id="enable_hooks" value="1"<?php if($options['enable_hooks']){echo ' checked="checked"';}?>/> 
+      <label for="enable_hooks"><?php _e('Enabled Hooks. This is only neccessary if you are using custom code that interacts with GatorCache hooks.', 'gatorcache');?></label>
+    </p>
+    <p style="margin-top:1.5em">
+      <button class="button-primary"><?php _e('Update', 'gatorcache');?></button>
+      <span class="result"></p>
+    </p>
   </form>
 <hr/>
 <form id="gci_crf" method="post" action="" autocomplete="off">
