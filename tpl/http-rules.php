@@ -21,6 +21,8 @@ BrowserMatch \bMSIE !no-gzip !gzip-only-text/html
 RewriteEngine On
 #Note: If behind a reverse proxy like nginx change %{HTTPS} to %{HTTP:X-Forwarded-Proto}
 #Clients that support gzip
+RewriteCond %{REQUEST_METHOD} !POST
+RewriteCond %{QUERY_STRING} ^$
 RewriteCond %{HTTPS} !=on
 RewriteCond %{HTTP_HOST} ^<?php echo($host = str_replace('.', '\.', $config->get('host')));?>$ 
 RewriteCond %{HTTP:Cookie} !^.*(wordpress_logged_in|comment_author).*$
@@ -30,6 +32,8 @@ RewriteCond <?php echo $cacheDir;?>/%{HTTP_HOST}/%{REQUEST_URI} -d
 RewriteCond <?php echo $cacheDir;?>/%{HTTP_HOST}/%{REQUEST_URI}index.gz -f
 RewriteRule ^/?(.*)$ /gator_cache/%{HTTP_HOST}/$1index.gz [L,E=no-gzip:1,E=gc_green:1]
 #Clients without gzip
+RewriteCond %{REQUEST_METHOD} !POST
+RewriteCond %{QUERY_STRING} ^$
 RewriteCond %{HTTPS} !=on
 RewriteCond %{HTTP_HOST} ^<?php echo($host);?>$ 
 RewriteCond %{HTTP:Cookie} !^.*(wordpress_logged_in|comment_author).*$
@@ -40,6 +44,8 @@ RewriteRule ^/?(.*)$ /gator_cache/%{HTTP_HOST}/$1index.html [L,E=gc_green:1]
 <?php if(!$options['skip_ssl']){?>
 #Ibid for SSL
 #Clients that support gzip
+RewriteCond %{REQUEST_METHOD} !POST
+RewriteCond %{QUERY_STRING} ^$
 RewriteCond %{HTTPS} =on
 RewriteCond %{HTTP_HOST} ^<?php echo($host = str_replace('.', '\.', $config->has('secure_host') ? $config->get('secure_host') : $config->get('host')));?>$ 
 RewriteCond %{HTTP:Cookie} !^.*(wordpress_logged_in|comment_author).*$
@@ -49,6 +55,8 @@ RewriteCond <?php echo($cacheDir = ($cacheDir . '/ssl@'));?>%{HTTP_HOST}/%{REQUE
 RewriteCond <?php echo $cacheDir;?>%{HTTP_HOST}/%{REQUEST_URI}index.gz -f
 RewriteRule ^/?(.*)$ /gator_cache/ssl@%{HTTP_HOST}/$1index.gz [L,E=no-gzip:1,E=gc_green:1]
 #Clients without gzip
+RewriteCond %{REQUEST_METHOD} !POST
+RewriteCond %{QUERY_STRING} ^$
 RewriteCond %{HTTPS} =on
 RewriteCond %{HTTP_HOST} ^<?php echo($host);?>$ 
 RewriteCond %{HTTP:Cookie} !^.*(wordpress_logged_in|comment_author).*$

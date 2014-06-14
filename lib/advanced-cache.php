@@ -19,6 +19,24 @@ if(!defined('GC_CHK_USER')){
         }
     }
 }
+//check for JetPack Mobile Theme
+if($config->get('jp_mobile') && false !== (@include_once(WP_CONTENT_DIR . '/plugins/jetpack/class.jetpack-user-agent.php'))){
+    for($xx = 0; $xx < 1; $xx++){
+        if(isset($_COOKIE['akm_mobile'])){
+            if('true' !== $_COOKIE['akm_mobile'] ){
+                break;
+            }
+        }
+        elseif(!jetpack_is_mobile()){
+            break;
+        }
+        if(!$config->get('jp_mobile_cache')){
+            return;
+            break;
+        }
+        $config->set('group', $config->get('group') . '-jpmobile');//use the mobile cache
+    }
+}
 $request = GatorCache::getRequest();
 if('GET' !== $request->getMethod() || '' !== $request->getQueryString() || ($request->isSecure() && $config->get('skip_ssl'))
   || false === ($host = $config->get($request->isSecure() && $config->has('secure_host') ? 'secure_host' : 'host'))
