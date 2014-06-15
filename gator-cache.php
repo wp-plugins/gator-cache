@@ -197,6 +197,7 @@ class WpGatorCache
                 self::copyAdvCache();
             }
             if(1.56 > $version){
+                self::copyAdvCache();
                 $config = GatorCache::getConfig(self::$configPath);
                 $config->set('jp_mobile', self::isJetPackMobile(false));
                 $config->set('jp_mobile_cache', false);
