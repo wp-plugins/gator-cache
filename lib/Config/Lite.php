@@ -24,9 +24,10 @@ class Config_Lite
 {
     protected $config = array();
     protected $path;
+    protected $parseSections;
 
-    public function __construct($path, $default = null, $verify = false){
-        if(false === ($config = @parse_ini_file($this->path = $path))){
+    public function __construct($path, $default = null, $verify = false, $parseSections = false){
+        if(false === ($config = @parse_ini_file($this->path = $path, $this->parseSections = $parseSections))){
             if(isset($default)){
                 $this->config = $default;
             }
@@ -67,6 +68,9 @@ class Config_Lite
             return false;
         }
         $this->out = array('<?php exit;?>');
+        if($this->parseSections){//sort by sections to avoid random keys entering end sections
+            uasort($this->config, array($this, 'sortSections'));
+        }
         $this->format($this->config);
         $fp = @fopen($usePath ? $path : $this->path, 'w');
         if($fp){
@@ -77,6 +81,13 @@ class Config_Lite
             return true;
         }
         return false;
+    }
+
+    public function sortSections($a, $b){
+        if((($isArrayA = is_array($a)) && is_array($b)) || (!is_array($b) && !$isArrayA)){
+            return 0;
+        }
+        return $isArrayA ? 1 : -1;//at this point isArrayB is mutually exclusive
     }
 
     public function save($key, $val){//combine set and write

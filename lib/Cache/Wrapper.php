@@ -88,7 +88,7 @@ class Cache_Wrapper
         return $this->cache->clean($group, $path);
     }
 
-    public function remove($id, $group = 'page', $check=false){
+    public function remove($id, $group = 'page', $check = false){
         if($this->config['gzip']){
             $this->cache->remove($id, $group, 'index.gz', $check);
         }
@@ -98,11 +98,45 @@ class Cache_Wrapper
         return $result; 
     }
 
+/**
+ * removeGroups
+ * 
+ * Remove id from multiple groups
+ */ 
+    public function removeGroups($id, array $groups, $check = false){
+        foreach($groups as $group){
+            $result = $this->remove($id, $group, $check);
+        }
+        return $result;
+    }
+
+/**
+ * purgeGroups
+ * 
+ * Purge multiple groups
+ */
+    public function purgeGroups(array $groups){
+        foreach($groups as $group){
+            $result = $this->purge($group);
+        }
+        return $result;
+    }
+
     public function getCache(){
         return $this->cache;
     }
 
     public function hasCache($group = 'page'){
         return is_dir($this->config['cache_dir'] . DIRECTORY_SEPARATOR . $group);
+    }
+
+    public function hasCacheGroups(array $groups){
+        foreach($groups as $group){
+            if($this->hasCache($group)){
+                return true;
+                break;
+            }
+        }
+        return false;
     }
 }

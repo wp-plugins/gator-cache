@@ -44,12 +44,26 @@ if('GET' !== $request->getMethod() || '' !== $request->getQueryString() || ($req
   || ($config->get('dir_slash') && '/' !== substr($request->getBasePath(), -1))){
     return;
 }
-if(false !== ($result = GatorCache::getCache($opts = $config->toArray())->get($request->getBasePath(), $request->isSecure() ? 'ssl@' . $opts['group'] : $opts['group']))){
+if(false !== ($result = GatorCache::getCache($opts = $config->toArray())->get($basePath = $request->getBasePath(), $request->isSecure() ? 'ssl@' . $opts['group'] : $opts['group']))){
     if($opts['last_modified'] && false !== ($fileTime = GatorCache::getCache($opts)->getCache()->getFileTime())){
         header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $fileTime). ' GMT');
     }
     if(!empty($opts['pingback'])){
         header('X-Pingback: ' . $opts['pingback']);
     }
-    die($result . ($opts['debug'] ? "\n<!-- Served by Advanced Cache " . $host . " -->\n" : ''));
+    if($isFeed = strstr($basePath, '/feed/') && isset($opts['rss2_type'])){
+        if('/feed/' === $basePath){
+            $contentType = isset($opts['default_feed']) && isset($opts[$key =  $opts['default_feed'] . '_type']) ? $opts[$key] : $opts['rss2_type'];
+        }
+        else{
+            $tmp = explode('/', $basePath);
+            $contentType =  empty($tmp[2]) || !isset($opts[$key =  $tmp[2] . '_type']) ? $opts['rss2_type'] : $opts[$key];
+                 
+        }
+        header($contentType);
+    }
+    elseif(isset($opts['content_type']) && !strstr($basePath, '.xml')){
+        header($opts['content_type']);
+    }
+    die($result . ($opts['debug'] && !$isFeed ? "\n<!-- Served by Advanced Cache " . $host . " -->\n" : ''));
 }
