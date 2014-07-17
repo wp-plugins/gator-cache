@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 1.54
+ * @version 1.57
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 1.54
+Version: 1.57
 */
 class WpGatorCache
 {
@@ -30,6 +30,8 @@ class WpGatorCache
         'skip_ssl' => true,
         'version' => false,
         'multisite_paths' => false,
+        'enable_hooks' => false,
+        'jp_mobile_cache' => false
     );
 
     protected static $options;
@@ -40,25 +42,27 @@ class WpGatorCache
     protected static $sslHandler;
     protected static $webUser;
     const PREFIX = 'gtr_cache';
-    const VERSION = '1.54';
+    const VERSION = '1.57';
+    const JP_MOBILE_MOD = 'minileven';//JetPack mobile module slug
 
     public static function initBuffer(){
         $options = self::getOptions();
         $request = GatorCache::getRequest();
         global $post;
         if(!$options['enabled']
-          || '.php' === substr($path = $request->getBasePath(), -4) //uri returns the whole qs
+          || '.php' === ($ext = substr($path = $request->getBasePath(), -4)) || '.txt' === $ext //uri returns the whole qs
           || (defined('DONOTCACHEPAGE') && DONOTCACHEPAGE)
-          || !isset($post)
+          || !isset($post)// && !is_feed()) 
           || 'GET' !== $request->getMethod()
           || '' !== $request->getQueryString()
           || ('post' !== $post->post_type && 'page' !== $post->post_type && !in_array($post->post_type, self::getCacheTypes()))
-          || (defined('DOING_AJAX') && DOING_AJAX)
-          || is_admin() || is_user_logged_in()
+          || (defined('DOING_AJAX') && DOING_AJAX) || is_admin()
+          || (is_user_logged_in() && (!$options['enable_hooks'] || !self::cacheUserContent()))
           || '' === get_option('permalink_structure')
           || self::hasPathExclusion($path)
           || self::isWooCart()
           || isset($_COOKIE['comment_author_' . COOKIEHASH])
+          || (self::isJetPackMobileSite() && !$options['jp_mobile_cache'])
           //|| (false !== $options['multisite_paths'] && self::isMultiSubPath($request->getBasePath()))
           || ($request->isSecure() && ($options['skip_ssl'] || self::sslObHandlers()))){//obhandlers has to be last
               return;
@@ -75,11 +79,12 @@ class WpGatorCache
         if(false === ($config = GatorCache::getConfig(self::$configPath, true))){//check config is loaded
             return;
         }
+        $group = $config->get('group');
+        $cache = GatorCache::getCache($opts = $config->toArray());//jpmobile group is set in advanced-cache.php
         if($options['debug']){
             global $post;
             $buffer .= "\n" . '<!-- Gator Cached ' . $post->post_type . (isset(self::$sslHandler) ? ' via ' . self::$sslHandler : '') . ' on [' . gmdate('Y-m-d H:i:s', time() + (get_option('gmt_offset') * 3600)) . '] -->';
         }
-        $cache = GatorCache::getCache($opts = $config->toArray());
         $request = GatorCache::getRequest();
         if(!$cache->has($path = $request->getBasePath(), $opts['group'])){
             if(isset(self::$sslHandler) && false !== ($replace = self::doHttpsHandler($buffer))){
@@ -141,15 +146,16 @@ class WpGatorCache
             $version = (float)$options['version'];
             $wpConfig = GatorCache::getOptions(self::PREFIX . '_opts');
             if(1.11 > $version){//requires a reinstall
-                $wpConfig->set('installed', self::$options['installed'] = false);
-                $wpConfig->set('enabled', self::$options['enabled'] = false);
+                self::disableCache();
+                return;
             }
-            elseif(1.43 > $version){//do some upgradin
+            if(1.43 > $version){//do some upgradin
                 if(1.3 > $version){//ssl flag
                     GatorCache::getConfig(self::$configPath)->save('skip_ssl', true);
                 }
-                if(1.33 > $version && self::copyAdvCache()){
-                    $wpConfig->set('version', self::$options['version'] = self::VERSION);
+                if(1.33 > $version && !self::copyAdvCache()){
+                    self::disableCache();
+                    return;
                 }
                 if(1.41 > $version && isset($options['app_support']['bbpress']) && is_plugin_active('bbpress/bbpress.php')){//bbpress support changes
                     if(false !== ($key = array_search(bbp_get_topic_post_type(), $options['post_types']))){
@@ -162,14 +168,12 @@ class WpGatorCache
                         $options['post_types'][] = 'bbpress';
                         $wpConfig->set('post_types', self::$options['post_types'] = $options['post_types']);
                     }
-                    $wpConfig->set('version', self::$options['version'] = self::VERSION);
                 }
                 if(1.42 > $version){//set the host name
                     if(false !== ($url = parse_url(get_option('siteurl'))) && self::copyAdvCache()){
                         global $wp_rewrite;
                         GatorCache::getConfig(self::$configPath)->set('host', $url['host']);
                         GatorCache::getConfig(self::$configPath)->save('dir_slash', isset($wp_rewrite->use_trailing_slashes) && $wp_rewrite->use_trailing_slashes);
-                        $wpConfig->set('version', self::$options['version'] = self::VERSION);
                     }
                     else{//houston we have a problem
                         self::disableCache();
@@ -179,10 +183,9 @@ class WpGatorCache
                 if(1.43 > $version){//set the host name, new advanced cache
                     self::setSecureHost();
                     self::copyAdvCache();
-                    $wpConfig->set('version', self::$options['version'] = self::VERSION);
                 }
             }
-            elseif(1.51 > $version){//move the cache to new group which is host name
+            if(1.51 > $version){//move the cache to new group which is host name
                 $config = GatorCache::getConfig(self::$configPath);
                 if(@rename(($cacheDir = $config->get('cache_dir') . DIRECTORY_SEPARATOR) . $config->get('group'), $cacheDir . ($host = $config->get('host')))){
                     $config->save('group', $host);
@@ -190,15 +193,23 @@ class WpGatorCache
                     //@note copying cache security htaccess will cause 404 for http cache so do not include it here, in future put it in verify install
                 }
                 self::copyAdvCache();//advanced cache changed with this version
-                $wpConfig->set('version', self::$options['version'] = self::VERSION);
             }
-            elseif(1.52 > $version){//fixes issue in advanced cache recopy
+            if(1.52 > $version){//fixes issue in advanced cache recopy
                 self::copyAdvCache();
-                $wpConfig->set('version', self::$options['version'] = self::VERSION);
             }
-            else{//nothing to see here, store the version
-                $wpConfig->set('version', self::$options['version'] = self::VERSION);
+            if(1.56 > $version){
+                self::copyAdvCache();
+                $config = GatorCache::getConfig(self::$configPath);
+                $config->set('jp_mobile', self::isJetPackMobile(false));
+                $config->set('jp_mobile_cache', false);
+                $config->write();
             }
+            if(1.57 > $version){
+                self::copyAdvCache();
+                self::setContentTypes(GatorCache::getConfig(self::$configPath));
+            }
+            //upgrades done or nothing to upgrade, update the version
+            $wpConfig->set('version', self::$options['version'] = self::VERSION);
             $wpConfig->write();
         }
         /*if(is_multisite() && !is_subdomain_install() && is_main_site(get_current_blog_id()) && !is_plugin_active_for_network(self::$path, 'gator-cache.php')){
@@ -428,7 +439,13 @@ class WpGatorCache
             case 'gci_del':
                 $result = GatorCache::purgeCache(self::$configPath);
                 if(!$options['skip_ssl']){//purge the ssl cache
-                    GatorCache::getCache($opts)->purge('ssl@' . $opts['group']);
+                    GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray())->purge('ssl@' . $opts['group']);
+                }
+                if($options['jp_mobile_cache']){
+                    GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray())->purge($opts['group'] . '-' . 'jpmobile');
+                    if(!$options['skip_ssl']){
+                        GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray())->purge('ssl@' . $opts['group'] . '-' . 'jpmobile');
+                    }
                 }
                 if(!$result){
                     $error = __('Cache could not be purged', 'gatorcache');
@@ -444,10 +461,14 @@ class WpGatorCache
                     'all'     => isset($_POST['rf_all']) && '1' === $_POST['rf_all']
                 );
                 $skip_ssl = !isset($_POST['cache_ssl']) || '1' !== $_POST['cache_ssl'];
-                if($refresh !== $options['refresh'] || $skip_ssl !== $options['skip_ssl']){
+                $enable_hooks = isset($_POST['enable_hooks']) && '1' === $_POST['enable_hooks'];
+                $jp_mobile_cache = isset($_POST['jp_mobile_cache']) && '1' === $_POST['jp_mobile_cache'];
+                if($refresh !== $options['refresh'] || $skip_ssl !== $options['skip_ssl'] || $enable_hooks !== $options['enable_hooks'] || $jp_mobile_cache !== $options['jp_mobile_cache']){
                     $update = true;
                     $options['refresh'] = $refresh;
+                    $options['enable_hooks'] = $enable_hooks;
                     $options['skip_ssl'] = $cache['skip_ssl'] = $skip_ssl;
+                    $options['jp_mobile_cache'] = $cache['jp_mobile_cache'] = $jp_mobile_cache;
                 }
             break;
             case 'gci_gen':
@@ -572,18 +593,24 @@ class WpGatorCache
             return;
         }
         $cache = GatorCache::getCache($opts = GatorCache::getConfig(self::$configPath)->toArray());
-        if(!$cache->hasCache($opts['group'])){//the cache appears to be empty Jim
+        //remove post from all cache groups
+        $groups = self::getCacheGroups($opts);
+        if(!$cache->hasCacheGroups($groups)){//the cache appears to be empty Jim
             return;
+        }
+        //rss feed, custom post type feeds are not cached since they contain a query string
+        if('post' === $post->post_type && false !== ($path = parse_url(get_feed_link(get_default_feed()), PHP_URL_PATH))){
+            $cache->removeGroups($path, $groups);//purge archive
         }
         //return the same refresh checks for new and updated posts
         if($options['refresh']['all'] && self::hasRecentWidgets()){//purge cache so sidebar widgets refresh @note could refine by post type 'post' === $post->post_type &&
-            $cache->purge($opts['group']);
+            $cache->purgeGroups($groups);
             return self::$refresh = true;
         }
         //refresh parent posts and the current post
         foreach(($posts = self::getRefreshPosts($post, $newPost)) as $postId){
             if(false !== ($path = parse_url(get_permalink($postId), PHP_URL_PATH))){
-                $cache->remove($path, $opts['group'], true);
+                $cache->removeGroups($path, $groups, true);
             }
         }
         //refresh home page
@@ -594,18 +621,18 @@ class WpGatorCache
         if(!empty($options['refresh_paths'])){
             if(!empty($options['refresh_paths']['all'])){
                 foreach($options['refresh_paths']['all'] as $refreshPath){
-                    $cache->remove($refreshPath, $opts['group']);
+                    $cache->removeGroups($refreshPath, $groups);
                 }
             }
             if(isset($options['app_support']['bbpress']) && !empty($options['refresh_paths']['bbpress']) 
               && isset($options['app_support']['bbpress'][$post->post_type])){
                 foreach($options['refresh_paths']['bbpress'] as $refreshPath){
-                    $cache->remove($refreshPath, $opts['group']);
+                    $cache->removeGroups($refreshPath, $groups);
                 }
             }
             if(!empty($options['refresh_paths'][$post->post_type])){
                 foreach($options['refresh_paths'][$post->post_type] as $refreshPath){
-                    $cache->remove($refreshPath, $opts['group']);
+                    $cache->removeGroups($refreshPath, $groups);
                 }
             }
         }
@@ -616,7 +643,7 @@ class WpGatorCache
         if(isset(self::$post)){//bbpress
             if(false !== ($link = get_post_type_archive_link(self::$post->post_type))
               && false !== ($path = parse_url($link, PHP_URL_PATH))){
-                $cache->remove($path, $opts['group']);
+                $cache->removeGroups($path, $groups);
             }
             return self::$refresh = true;
         }
@@ -627,26 +654,31 @@ class WpGatorCache
                     continue;
                 }
                 if(false !== ($path = parse_url($termLink, PHP_URL_PATH))){
-                    $cache->remove($path, $opts['group']);
+                    $cache->removeGroups($path, $groups);//purge archive
                 }
+                //this is not necessary since the category feed is under the category directory which has already been removed
+                /*if(false !== ($path = parse_url(get_term_feed_link($term->term_id, $term->taxonomy, get_default_feed()), PHP_URL_PATH))){
+                    $cache->remove($path, $opts['group']);//purge archive feed, this will purge all feed types since the default is the top level
+                }*/
             }
         }
         //woocommerce shop
         if('product' === $post->post_type && false !== ($link = get_permalink(woocommerce_get_page_id('shop')))
           && false !== ($path = parse_url($link, PHP_URL_PATH))){
-            $cache->remove($path, $opts['group']);
+            $cache->removeGroups($path, $groups);
         }
         self::$refresh = true;
     }
 
     public static function getArchiveTerms($post){
         $taxonomies = array_map('WpGatorCache::mapTaxonomies',
-            array_filter(get_object_taxonomies($post, 'objects'), 'WpGatorCache::filterTaxonomies')
+            get_object_taxonomies($post, 'objects')
+            //array_filter(get_object_taxonomies($post, 'objects'), 'WpGatorCache::filterTaxonomies')
         );
-        if(empty($taxonomies)){//only archivable taxonomies like category
+        if(empty($taxonomies)){
             return false;
         }
-        $terms = wp_get_object_terms(array($post->ID), array_values($taxonomies));
+        $terms = wp_get_object_terms(array($post->ID), $taxonomies);//array_values($taxonomies)
         if(empty($terms)){
             return false;
         }
@@ -675,7 +707,7 @@ class WpGatorCache
                 return $messages;
             }
             $extra = __(' (GatorCache refreshed)', 'gatorcache');
-            $messages['post'][1] =  $extra;
+            $messages['post'][1] .=  $extra;
             $messages['page'][1] .= $extra;
             foreach($options['post_types'] as $type){
                 if(isset($messages[$type])){
@@ -705,7 +737,7 @@ class WpGatorCache
         $options = self::getOptions();
         GatorCache::getCache(
             $opts = GatorCache::getConfig(self::$configPath)->toArray()
-        )->remove($path, $opts['group'], true);
+        )->remove($path, self::getCacheGroups($opts), true);
     }
 
     public static function filterCookieLifetime($lifetime){
@@ -1064,7 +1096,32 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
             $config->remove('path');
             $config->write();
         }
+        if(self::isJetPackMobile(false) && !$config->get('jp_moblie')){
+            $config->save('jp_mobile', true);
+        }
+        elseif($config->get('jp_moblie')){
+            $config->save('jp_mobile', false);
+        }
+        self::setContentTypes($config);
         return true;
+    }
+
+    protected static function setContentTypes($config){
+        if($config->get('content_type') !== ($contentType = 'Content-Type: ' . get_option('html_type') . '; charset=' . ($charset = get_option('blog_charset')))){
+            $config->save('content_type', $contentType);
+        }
+        if($config->get('rss2_type') !== ($contentType = 'Content-Type: text/xml; charset=' . $charset)){
+            $config->save('rss2_type', $contentType);
+        }
+        if($config->get('atom_type') !== ($contentType = 'Content-Type: application/atom+xml; charset=' . $charset)){
+            $config->save('atom_type', $contentType);
+        }
+        if($config->get('rdf_type') !== ($contentType = 'Content-Type: application/rdf+xml; charset=' . $charset)){
+            $config->save('rdf_type', $contentType);
+        }
+        if($config->get('default_feed') !== ($defaultFeed = get_default_feed())){
+            $config->save('default_feed', $defaultFeed);
+        }
     }
 
     protected static function sslObHandlers(){
@@ -1135,6 +1192,46 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
             }
         }
         return false;
+    }
+
+    protected static function isJetPackMobile($skipSettings = true){//jetpack checks settings on frontend
+        return defined('JETPACK__VERSION') && false !== ($active = get_option('jetpack_active_modules')) && in_array(self::JP_MOBILE_MOD, $active) && ($skipSettings || '1' !== get_option('wp_mobile_disable'));
+    }
+
+    protected static function isJetPackMobileSite(){
+        return self::isJetPackMobile() && jetpack_check_mobile();
+    }
+
+    protected static function cacheUserContent(){
+        $user = wp_get_current_user();
+        $options = self::getOptions();
+        $cacheme = array_intersect($options['roles'], (array)$user->roles);
+        return !empty($cacheme) && apply_filters('gc_cache_user_content', false);
+    }
+
+    protected static function getNoCacheHeaders(){
+        $headers = array();
+        foreach(wp_get_nocache_headers() as $k => $v){
+            if('Last-Modified' === $k){
+                continue;
+            }
+            $headers[] = $k . ': ' . $v;
+        }
+        return empty($headers) ? false : $headers;
+    }
+
+    protected static function getCacheGroups($opts){
+        $groups = array($opts['group']);
+        if($isJetPackMobile = $opts['jp_mobile_cache']){
+            $groups[] = $opts['group'] . '-jpmobile';
+        }
+        if(!$opts['skip_ssl']){
+            $groups[] = 'ssl@' . $opts['group'];
+            if($isJetPackMobile){
+                $groups[] = 'ssl@' . $opts['group'] . '-jpmobile';
+            }
+        }
+        return $groups;
     }
 }
 //Hooks
