@@ -6,7 +6,7 @@ if('' === get_option('permalink_structure')){
 ?>
 <div class="updated">
   <p><?php _e('Warning: Gator Cache will not Cache Pages without a permalink structure.', 'gatorcache');?>
-    <a href="<?php echo is_multisite() ? network_admin_url('options-permalink.php') : admin_url('options-permalink.php');?>" class="button-secondary">Repair</a>
+    <a href="<?php echo self::isMultiSite() ? network_admin_url('options-permalink.php') : admin_url('options-permalink.php');?>" class="button-secondary">Repair</a>
   </p>
 </div>
 <?php }
@@ -40,7 +40,9 @@ if(isset($postTypes['wooframework'])){//woothemes
 <li><a href="#tabs-7"><?php _e('Custom', 'gatorcache');?></a></li>
 <li><a href="#tabs-6"><?php _e('Cache Rules', 'gatorcache');?></a></li>
 <li><a href="#tabs-3"><?php _e('Debug', 'gatorcache');?></a></li>
+<?php if($showHttp = (!self::isMultiSite() || self::isMainSite())){//not necessary for multisite sub sites?>
 <li><a href="#tabs-5"><?php _e('Http', 'gatorcache');?></a></li>
+<?php }?>
 </ul>
 <div id="tabs-7">
   <form id="gci_dir" method="post" action="" autocomplete="off">
@@ -139,6 +141,7 @@ if(!empty($postTypes)){?>
   <p><i class="fa fa-info-circle"></i> <?php printf(__('When SSL is enabled, Gator Cache is compatible with %s and will cache the pages it secures.', 'gatorcache'), '<em><strong>WordPress HTTPS</strong></em>');?></p>
 <?php }?>
 </div>
+<?php if($showHttp){?>
 <div id="tabs-5">
   <form id="gci_http" method="post" action="" autocomplete="off">
     <p><?php _e('Recommended webserver rules for http caching.', 'gatorcache');?></p>
@@ -163,6 +166,7 @@ else{?>
 <?php }?>
   </form>
 </div>
+<?php }//endif show http?>
 <div id="tabs-4">
   <form id="gci_usr" method="post" action="" autocomplete="off">
     <p class="result"></p>

@@ -41,6 +41,7 @@ class WpGatorCache
     protected static $refresh = false;
     protected static $sslHandler;
     protected static $webUser;
+    protected static $multiSiteData;
     const PREFIX = 'gtr_cache';
     const VERSION = '1.57';
     const JP_MOBILE_MOD = 'minileven';//JetPack mobile module slug
@@ -940,6 +941,33 @@ class WpGatorCache
         return false;
     }
 
+    
+    public static function isMultiSite(){
+        if(isset(self::$multiSiteData)){
+            return self::$multiSiteData['isMulti'];
+        }
+        self::$multiSiteData = array();
+        return self::$multiSiteData['isMulti'] = is_multisite();
+    }
+
+    public static function isMainSite(){
+        if(!isset(self::$multiSiteData)){
+            self::isMultiSite();
+        }
+        if(!isset(self::$multiSiteData['isMain'])){
+            self::$multiSiteData['isMain'] = self::$multiSiteData['isMulti'] && is_main_site(get_current_blog_id());
+            self::$multiSiteData['isSubDomain'] = self::$multiSiteData['isMulti'] && is_subdomain_install();
+        }
+        return self::$multiSiteData['isMain'];
+    }
+
+    public static function isMultiSubDomain(){
+        if(!isset(self::$multiSiteData['isSubDomain'])){
+            self::isMainSite();
+        }
+        return self::$multiSiteData['isSubDomain'];
+    }
+
     protected static function hasRecentWidgets(){
         if(false === ($sidebars = get_option('sidebars_widgets')) || empty($sidebars)){//instead of wp_get_sidebars_widgets()
             return false;
@@ -1232,6 +1260,18 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
             }
         }
         return $groups;
+    }
+
+    protected static function getHostString($config){//for apache rules
+        if(!self::isMultiSubDomain() || false === ($blogMap = GatorCache::getBlogMap())){//regular site
+            return str_replace('.', '\.', $config->get('host'));
+        }
+        //special case main site of a subdomain install
+        $blogs = $blogMap->all();
+        foreach($blogs as $key =>$blog){
+            $blogs[$key] = str_replace('.', '\.', $config->get('host'));
+        }
+        return '(' . implode('|', $blogs) . ')';
     }
 }
 //Hooks

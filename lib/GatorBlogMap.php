@@ -68,6 +68,10 @@ class GatorBlogMap
         return array_search($blogId, $this->config->toArray());
     }
 
+    public function all(){
+        return $this->config->toArray();
+    }
+
     public static function getPath(){
         if(!isset(self::$mapPath)){
             self::$mapPath = ABSPATH . 'gc-blogs.ini.php';

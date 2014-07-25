@@ -24,7 +24,7 @@ RewriteEngine On
 RewriteCond %{REQUEST_METHOD} !POST
 RewriteCond %{QUERY_STRING} ^$
 RewriteCond %{HTTPS} !=on
-RewriteCond %{HTTP_HOST} ^<?php echo($host = str_replace('.', '\.', $config->get('host')));?>$ 
+RewriteCond %{HTTP_HOST} ^<?php echo($host = self::getHostString($config));?>$ 
 RewriteCond %{HTTP:Cookie} !^.*(wordpress_logged_in|comment_author).*$
 RewriteCond %{HTTP:Accept-Encoding} gzip
 RewriteCond %{ENV:no-gzip} !1
