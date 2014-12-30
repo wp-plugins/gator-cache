@@ -46,9 +46,10 @@ if ('GET' !== $request->getMethod() || $request->hasQueryString() || ($request->
 }
 //get the cache
 if (null !== ($result = GatorCache::getCache($opts = $config->toArray())->get($basePath = $request->getPathInfo(), $request->isSecure() ? 'ssl@' . $opts['group'] : $opts['group']))) {
-    if ($opts['last_modified'] && false !== ($fileTime = GatorCache::getCache($opts)->getCache()->getFileTime())) {
+    //this would required the gmt offset
+    /*if ($opts['last_modified'] && false !== ($fileTime = GatorCache::getCache($opts)->getCache()->getFileTime())) {
         header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $fileTime). ' GMT');
-    }
+    }*/
     if (!empty($opts['pingback'])) {
         header('X-Pingback: ' . $opts['pingback']);
     }

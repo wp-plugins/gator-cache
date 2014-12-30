@@ -257,7 +257,7 @@ class Reo_Classic_CacheLite
         }
         //@note the ttl will be stored for readcontrol and handled in _read, check here against the global ttl or lifetime
         if (!$this->readControl) {
-            //the ttl is not saved with the cache, use ttl setting, unit test would require stubbing out time, verified by logic
+            //the ttl is not saved with the cache, use ttl setting
             if (0 !== $this->lifeTime && false !== ($fileTime = @filemtime($this->_file)) && $fileTime < (time() - $this->lifeTime)) {
                 @unlink($this->_file);
                 return null;

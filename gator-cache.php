@@ -65,6 +65,7 @@ class WpGatorCache
           || self::isWooCart()
           || isset($_COOKIE['comment_author_' . COOKIEHASH])
           || (self::isJetPackMobileSite() && !$options['jp_mobile_cache'])
+          //|| ($options['enable_hooks'] && apply_filters('gc_skip_cache', false))
           //|| (false !== $options['multisite_paths'] && self::isMultiSubPath($path))
           || ($request->isSecure() && ($options['skip_ssl'] || self::sslObHandlers()))) {
             //obhandlers has to be last
