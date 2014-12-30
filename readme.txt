@@ -2,9 +2,9 @@
 Contributors: GatorDog
 Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce, multisite, jetpack mobile
-Requires at least: 3.6
-Tested up to: 3.9
-Stable tag: 1.57
+Requires at least: 3.8
+Tested up to: 4.1
+Stable tag: 2.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,7 +22,7 @@ Gator Cache is an easy to manage page cache for WordPress. Once installed, it au
 *   Compatible with WordPress HTTPS, will cache pages secured by the plugin when applicable
 *   Compatible with WordPress Multisite
 *   Compatible with JetPack Mobile Site
-*   Posts can be cached for logged-in WordPress users by role. You can cache pages for Subscribers, Customers or other roles while skipping the cache for Administrators.
+*   Posts can be cached for logged-in WordPress users by role. You can cache pages for Subscribers, Customers or other roles while skipping the cache for Administrators
 *   Http caching supported with Apache and Nginx
 
 == Screenshots ==
@@ -43,7 +43,18 @@ Gator Cache is an easy to manage page cache for WordPress. Once installed, it au
 
 No, GatorCache does not write to your htaccess. However, recommended Apache rewrite rules are provided, based on your settings, that you can copy and paste to your htaccess file to enable http caching.
 
+= How do I delete the entire cache? =
+
+Click on the "Purge Cache" button on the admin toolbar. This brings you to the Debug tab on the GatorCache admin panel, press the "Purge Cache" button to delete your entire cache.
+
 == Changelog ==
+
+= 2.0 =
+* Purge Cache button added to the admin toolbar
+* Install in document root directory by default (the cache dir is protected from direct access by .htaccess)
+* Improved administration UI
+* Bug fix, don't cache xml files, eg sitemap.xml
+* Update cache engine to Reo_Classic_CacheLite
 
 = 1.57 =
 * Adds automatic updating for Tag Archives

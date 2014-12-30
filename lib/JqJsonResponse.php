@@ -1,29 +1,20 @@
-<?php 
+<?php
 /**
  * JqJsonResponse
- * 
- * Simple resp wrapper for some jquery stuff.
- * 
- * Copyright(c) 2014 Schuyler W Langdon
- * 
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *      
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
+ * Simple resp wrapper for some jquery stuff.
+ *
+ * Copyright(c) Schuyler W Langdon
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
 class JqJsonResponse
 {
     protected $params = array();
 
-    public function send($success = false){
+    public function send($success = false)
+    {
         $this->params['success'] = $success  ? '1' : '0';
         $response = $this->buildResponse();
         $this->killBuffers();
@@ -32,21 +23,24 @@ class JqJsonResponse
         die($response);
     }
 
-    public function setParam($key, $payload){
+    public function setParam($key, $payload)
+    {
         $this->params[$key] = $payload;
         return $this;
     }
 
-    protected function buildResponse(){
+    protected function buildResponse()
+    {
         $payload = array();
-        foreach($this->params as $key => $val){
+        foreach ($this->params as $key => $val) {
             $payload[] = '"' . $key . '":' . json_encode($val);
         }
         return '{' . implode(',', $payload) . '}';
     }
 
-    protected function killBuffers(){
-        for($ct = count(ob_list_handlers()),$xx=0;$xx<$ct;$xx++){
+    protected function killBuffers()
+    {
+        for ($ct = count(ob_list_handlers()), $xx=0;$xx<$ct;$xx++) {
             ob_end_clean();
         }
     }
