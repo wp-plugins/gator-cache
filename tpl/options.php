@@ -39,7 +39,7 @@ if(isset($postTypes['wooframework'])){//woothemes
 <li><a href="#tabs-4"><?php _e('Users', 'gatorcache');?></a></li>
 <li><a href="#tabs-7"><?php _e('Custom', 'gatorcache');?></a></li>
 <li><a href="#tabs-6"><?php _e('Cache Rules', 'gatorcache');?></a></li>
-<li><a href="#tabs-3"><?php _e('Debug', 'gatorcache');?></a></li>
+<li><a href="#tab-debug"><?php _e('Debug', 'gatorcache');?></a></li>
 <?php if($showHttp = (!self::isMultiSite() || self::isMainSite())){//not necessary for multisite sub sites?>
 <li><a href="#tabs-5"><?php _e('Http', 'gatorcache');?></a></li>
 <?php }?>
@@ -192,6 +192,7 @@ else{?>
       </select>
     </p>
     <p><button class="button-primary"><?php _e('Update', 'gatorcache');?></button></p>
+    <p><i class="fa fa-lightbulb-o"></i> <?php _e('Unless your theme displays user specific content via ajax, caching logged-in user content is usually not a good idea.');?></p>
   </form>
 </div>
 <div id="tabs-1">
@@ -225,7 +226,7 @@ else{?>
 <form id="gci_cpt" method="post" action="" autocomplete="off">
   <p class="result"></p>
   <p>
-    <?php _e('By Default Gator Cache will cache your posts and pages', 'gatorcache');?>.
+    <?php _e('By Default Gator Cache will cache your Posts and Pages', 'gatorcache');?>.
   </p>
 <?php
 if(empty($postTypes)){?>
@@ -255,7 +256,7 @@ if(empty($postTypes)){?>
 <?php }?>
 </form>
 </div>
-<div id="tabs-3">
+<div id="tab-debug">
 <form id="gci_dbg" method="post" action="" autocomplete="off">
   <p class="result"></p>
   <p>

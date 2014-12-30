@@ -16,12 +16,11 @@ $cacheDir = self::getInitDir();?>
     <div id="step_1">
       <label><?php printf('<strong>%s</strong>) %s', __('Install', 'gatorcache'), __('Create Cache Directory and Copy Files', 'gatorcache'));?></label>
       <input type="submit" id="gci_btn" name="gci_btn" class="button-primary" style="margin: 1em 0 1em 1em" value="Install"/><br/>
-      <input type="checkbox" id="in_root" name="in_root" value="1"/> <label for="in_root"><?php _e('Create Cache Directory In Document Root', 'gatorcache');?>
-      <p><i class="fa fa-info-circle"></i> <?php _e('Creating the cache directory in the document root is necessary in many shared hosting environments.', 'gatorcache');?></p>
+      <input type="checkbox" id="abv_root" name="abv_root" value="1"/> <label for="abv_root"><?php _e('Create Cache Directory Above Document Root', 'gatorcache');?>
       <p id="block_inroot" style="display:none">
         <span style="display:block;margin 1em 0;color:firebrick;font-weight:600"><?php _e('Gator Cache could not create your cache directory, please manually create the directory shown in the path above. If your hosting is set up to only allow document root access, check the box above to create the cache directory in your document root.', 'gatorcache');?></span></br>
       </p>
-      <p><i class="fa fa-info-circle"></i> <?php _e('Gator Cache will attempt to install your cache directory parallel to your document root, if it does not already exist.', 'gatorcache');?></p>
+      <p><i class="fa fa-info-circle"></i> <?php _e('Gator Cache will attempt to install your cache directory in your document root, if it does not already exist.', 'gatorcache');?></p>
     </div>
   </form>
   <script type="text/javascript">
@@ -31,7 +30,7 @@ $cacheDir = self::getInitDir();?>
         $('#gci_result').html('<img src="<?php echo($loading = site_url(version_compare(get_bloginfo('version'), '3.9', '>=') ? '/wp-includes/js/tinymce/skins/lightgray/img/loader.gif' : '/wp-includes/js/tinymce/themes/advanced/skins/default/img/progress.gif'));?>"/>').show();
         var form = $(this).serializeArray();
         form.push({'name':'action','value':'gcinstall'});
-        if($('#in_root').prop('checked')){
+        if(!$('#abv_root').prop('checked')){
             form.push({'name':'ndoc_root','value':'1'});
         }
         $('#gci_btn').attr('disabled', true);
