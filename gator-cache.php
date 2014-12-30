@@ -68,7 +68,7 @@ class WpGatorCache
           //|| ($options['enable_hooks'] && apply_filters('gc_skip_cache', false))
           //|| (false !== $options['multisite_paths'] && self::isMultiSubPath($path))
           || ($request->isSecure() && ($options['skip_ssl'] || self::sslObHandlers()))) {
-            //obhandlers has to be last
+          //obhandlers has to be last
               return;
         }
         ob_start('WpGatorCache::onBuffer');
@@ -273,7 +273,7 @@ class WpGatorCache
         wp_enqueue_style('jquery-ui', '//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/themes/redmond/jquery-ui.css');
         wp_enqueue_style('chosen', $pluginUrl . '/css/chosen.css');
         wp_enqueue_style('gator-cache', $pluginUrl . '/css/gator-cache.css');
-        wp_enqueue_style('font-awesome', '//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css');
+        wp_enqueue_style('font-awesome', '//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css');
     }
 
     public static function filterCacheUpdate($v)
@@ -1307,7 +1307,7 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
         $user = wp_get_current_user();
         $options = self::getOptions();
         $cacheme = array_intersect($options['roles'], (array)$user->roles);
-        return !empty($cacheme) && apply_filters('gc_cache_user_content', false);
+        return !empty($cacheme) && apply_filters('gc_cache_user_content', false, $user);
     }
 
     protected static function getNoCacheHeaders()
