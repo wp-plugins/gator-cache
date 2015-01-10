@@ -16,7 +16,8 @@
 #gci_tabs textarea{background:cyan;width:100%;}
 #gci_tabs .purge{margin:-.5em 0 0 .5em}
 #gci_tabs hr{color:#E67E00}
-#gci_del > p {margin-top:1.5em}
+#gci_del > p{margin-top:1.5em}
+#gci_del i.fa-bomb {color:#FF1919}
 #gci_usr .chzn-container-multi .chzn-choices, #gci_cpt .chzn-container-multi .chzn-choices{min-height:20px}
 #gci_usr .chzn-container-multi .chzn-choices .search-field input,#gci_cpt .chzn-container-multi .chzn-choices .search-field input{min-height:20px;padding: 4px 5px}
 #gci_usr i.fa-lightbulb-o{color:#B28F00}

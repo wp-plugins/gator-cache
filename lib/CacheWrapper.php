@@ -72,12 +72,16 @@ class CacheWrapper
 
     public function remove($id, $group = 'page', $check = false)
     {
+        //pretty urls
+        $id = trim($id, '/');
+
         if ($this->config['gzip']) {
-            $this->cache->remove($id, $group, 'index.gz', $check);
+            $this->cache->remove($id . '/index.gz', $group, $check);
         }
-        $result = $this->cache->remove($id, $group, 'index.html', $check);
+        $result = $this->cache->remove($id . '/index.html', $group, $check);
+
         //zap any pagination
-        $this->cache->clean($group . $id  . 'page');
+        $this->cache->clean($pag = $group . '/' . $id  . '/page');
         return $result;
     }
 
