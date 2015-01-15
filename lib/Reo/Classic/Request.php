@@ -336,11 +336,16 @@ class Reo_Classic_Request
      */
     public static function setTrustedHosts(array $hostPatterns)
     {
-        self::$trustedHostPatterns = array_map(function ($hostPattern) {
-            return sprintf('{%s}i', str_replace('}', '\\}', $hostPattern));
-        }, $hostPatterns);
+        self::$trustedHostPatterns = array_map('Reo_Classic_Request::filterHostPatterns', $hostPatterns);
         // we need to reset trusted hosts on trusted host patterns change
         self::$trustedHosts = array();
+    }
+
+    /**
+     * php 5.2 compatible callable for setTrustedHosts
+     */ 
+    public static function filterHostPatterns($hostPattern) {
+        return sprintf('{%s}i', str_replace('}', '\\}', $hostPattern));
     }
 
     /**
