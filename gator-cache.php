@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 2.0.2
+ * @version 2.0.3
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 2.0.2
+Version: 2.0.3
 */
 class WpGatorCache
 {
@@ -43,7 +43,7 @@ class WpGatorCache
     protected static $webUser;
     protected static $multiSiteData;
     const PREFIX = 'gtr_cache';
-    const VERSION = '2.0.2';
+    const VERSION = '2.0.3';
     const JP_MOBILE_MOD = 'minileven';//JetPack mobile module slug
 
     public static function initBuffer()
