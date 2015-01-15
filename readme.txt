@@ -4,7 +4,7 @@ Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce, multisite, jetpack mobile
 Requires at least: 3.8
 Tested up to: 4.1
-Stable tag: 2.0.2
+Stable tag: 2.0.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -48,6 +48,9 @@ No, GatorCache does not write to your htaccess. However, recommended Apache rewr
 Click on the "Purge Cache" button on the admin toolbar. This brings you to the Debug tab on the GatorCache admin panel, press the "Purge Cache" button to delete your entire cache.
 
 == Changelog ==
+
+= 2.0.3 =
+* Fixes backwards compatiblity with php 5.2. 
 
 = 2.0.2 =
 * Fix bug with 2.0.x version auto-refresh of posts. The cache will now be refreshed upon add / update as usual.
