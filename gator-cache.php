@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 2.0.3
+ * @version 2.0.4
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 2.0.3
+Version: 2.0.4
 */
 class WpGatorCache
 {
@@ -43,7 +43,7 @@ class WpGatorCache
     protected static $webUser;
     protected static $multiSiteData;
     const PREFIX = 'gtr_cache';
-    const VERSION = '2.0.3';
+    const VERSION = '2.0.4';
     const JP_MOBILE_MOD = 'minileven';//JetPack mobile module slug
 
     public static function initBuffer()
@@ -1101,6 +1101,10 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
             GatorCache::getNotices()->add($msg, '108');
             self::disableCache();//requires reinstall
             return false;
+        }
+        //for apache, make sure htaccess protects the cache dir
+        if(!@file_exists($htaccess = $cacheDir . '/.htaccess')){
+            @file_put_contents($htaccess, "Order Deny,Allow\nDeny from all\nAllow from env=redirect_gc_green\n") ;
         }
         //check wp cache is set and the right adv cache is present
         if (!(defined('WP_CACHE') && WP_CACHE) || !self::copyAdvCache(false)) {
