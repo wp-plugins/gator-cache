@@ -4,7 +4,7 @@ Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce, multisite, jetpack mobile
 Requires at least: 3.8
 Tested up to: 4.1
-Stable tag: 2.0.3
+Stable tag: 2.0.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -49,22 +49,21 @@ Click on the "Purge Cache" button on the admin toolbar. This brings you to the D
 
 == Changelog ==
 
+= 2.0.4 =
+* Fixes potential cache directory permissions issue with http or Apache caching.
+* Adds installation verification check for htaccess that protects the cache directory from direct access.
 = 2.0.3 =
 * Fixes backwards compatiblity with php 5.2. 
-
 = 2.0.2 =
 * Fix bug with 2.0.x version auto-refresh of posts. The cache will now be refreshed upon add / update as usual.
-
 = 2.0.1 =
 * Minor admin panel UI tweaks
-
 = 2.0 =
 * Purge Cache button added to the admin toolbar
 * Install in document root directory by default (the cache dir is protected from direct access by .htaccess)
 * Improved administration UI
 * Bug fix, don't cache xml files, eg sitemap.xml
 * Update cache engine to Reo_Classic_CacheLite
-
 = 1.57 =
 * Adds automatic updating for Tag Archives
 * Adds Support for Caching Feeds

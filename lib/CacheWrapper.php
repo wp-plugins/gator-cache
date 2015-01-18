@@ -31,6 +31,7 @@ class CacheWrapper
             'lifeTime'         => $this->config['lifetime'],
             'debug'            => false,//$this->config['debug'] this will only throw exceptions when purging non-existent stuff
             'readControl'      => false,
+            'hashedDirectoryUmask' => 0755,
             'fileNameHashMode' => 'apache'
         ));
         $this->config['gzip'] = extension_loaded('zlib') ? !empty($this->config['gzip']) : false;
