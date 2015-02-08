@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 2.0.4
+ * @version 2.0.5
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 2.0.4
+Version: 2.0.5
 */
 class WpGatorCache
 {
@@ -43,7 +43,7 @@ class WpGatorCache
     protected static $webUser;
     protected static $multiSiteData;
     const PREFIX = 'gtr_cache';
-    const VERSION = '2.0.4';
+    const VERSION = '2.0.5';
     const JP_MOBILE_MOD = 'minileven';//JetPack mobile module slug
 
     public static function initBuffer()
@@ -184,7 +184,7 @@ class WpGatorCache
                 self::copyAdvCache();
                 self::setContentTypes(GatorCache::getConfig(self::$configPath));
             }
-            if (2 > $version) {
+            if (3 > $version) {//latest version should copy this
                 self::copyAdvCache();
             }
             //upgrades done or nothing to upgrade, update the version
