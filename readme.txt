@@ -4,7 +4,7 @@ Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce, multisite, jetpack mobile
 Requires at least: 3.8
 Tested up to: 4.1
-Stable tag: 2.0.5
+Stable tag: 2.0.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -49,6 +49,8 @@ Click on the "Purge Cache" button on the admin toolbar. This brings you to the D
 
 == Changelog ==
 
+= 2.0.6 =
+* A better fix for 2.0.5, checks the request uri for directly accessed php files rather than the script name.
 = 2.0.5 =
 * Fixes compatiblity issue with FORCE_SSL_ADMIN by serving the cache only when index.php is the handler.
 = 2.0.4 =
