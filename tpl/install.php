@@ -61,7 +61,7 @@ $cacheDir = self::getInitDir();?>
 })(jQuery);
   </script>
   <h2><?php _e('Troubleshooting Code Reference Guide', 'gatorcache');?></h3>
-  <p><strong><?php _e('Tech Support', 'gatorcache');?></strong>: <strong><a href="http://gatordev.com/support/forum/gator-cache/" target="_blank">http://gatordev.com/support/forum/gator-cache/</a></strong></p>
+  <p><strong><?php _e('Tech Support', 'gatorcache');?></strong>: <strong><a href="<?php echo WpGatorCache::SUPPORT_LINK;?>" target="_blank"><?php echo WpGatorCache::SUPPORT_LINK;?></a></strong></p>
   <p><span style="background:gold"><strong>100</strong> <em><?php _e('Cache Directory could not be created', 'gatorcache');?></em></span> - <?php printf('Manually create the cache directory, <strong>%s</strong>. Change the ownership to <strong>%s</strong>. If this is not possible with your hosting, the permissions can be set to "0777" with your ftp client or file manager.', $cacheDir, $webUser = self::getWebUser());?></p>
   <p><span style="background:gold"><strong>101</strong> <em><?php _e('Cache Directory is not writable', 'gatorcache');?></em></span>  - <?php _e('Change the ownership or permissions as mentioned in Error Code 100.', 'gatorcache');?></p>
   <p><span style="background:gold"><strong>102</strong> <em><?php _e('The Gator Cache config file is not writable', 'gatorcache');?></em></span>  - <?php printf('Change the ownership of <strong>%s</strong> to <strong>%s</strong>. If this is not possible with your hosting, the file permissions should be set to "0777".', ABSPATH . 'gc-config.ini.php', $webUser);?></p>

@@ -76,6 +76,15 @@ class Reo_Classic_CacheLite
     protected $_fileName;
 
     /**
+    * File ext
+    * 
+    * An optional file extension that may be appended to cache file names.
+    *
+    * @var string $fileExt
+    */
+    protected $fileExt;
+
+    /**
     * Enable / disable write control (the cache is read just after writing to detect corrupt entries)
     *
     * Enable write control will lightly slow the cache writing but not the cache reading
@@ -163,7 +172,7 @@ class Reo_Classic_CacheLite
      *
      * @var array of protected properties that can be set
      */
-    protected static $availableOptions = array('hashedDirectoryUmask' => true, 'automaticSerialization' => true, 'fileNameHashMode' => true, 'lifeTime' => true, 'fileLocking' => true, 'writeControl' => true, 'readControl' => true, 'readControlType' => true, 'debug' => true);
+    protected static $availableOptions = array('hashedDirectoryUmask' => true, 'automaticSerialization' => true, 'fileNameHashMode' => true, 'lifeTime' => true, 'fileExt' => true, 'fileLocking' => true, 'writeControl' => true, 'readControl' => true, 'readControlType' => true, 'debug' => true);
     
     // --- Public methods ---
 
@@ -236,7 +245,7 @@ class Reo_Classic_CacheLite
             $this->{$name} = $value;
         }
     }
-    
+
     /**
     * Test if a cache is available and (if yes) return it
     *
@@ -416,7 +425,19 @@ class Reo_Classic_CacheLite
     {
         return $this->lifeTime;
     }
-    
+
+    /**
+    * Returns the file name including the full path
+    * from the most recent get, set or has call.
+    *
+    * @return string the file name
+    * @access public
+    */
+    public function getFileName()
+    {
+        return isset($this->_file) ? $this->_file : null;
+    }
+
     /**
     * Return the cache last modification time
     *
@@ -612,7 +633,7 @@ class Reo_Classic_CacheLite
             $root .= '/' . $fullPath;
         }
 
-        $this->_file = $root . '/' . $this->_fileName;
+        $this->_file = $root . '/' . $this->_fileName . (isset($this->fileExt) ? $this->fileExt : '');
     }
     
     /**
@@ -659,7 +680,7 @@ class Reo_Classic_CacheLite
             }
             @fclose($fp);
             if ($this->readControl) {
-                if ((false !== $hashControl && $this->_hash($data, $this->readControlType) != $hashControl) || ('0000000000' !== $ttl && @filemtime($this->_file) > $ttl)) {
+                if ((false !== $hashControl && $this->_hash($data, $this->readControlType) != $hashControl) || ('0000000000' !== $ttl && time() > (int) $ttl)) {
                     //clean garbage on the fly
                     @unlink($this->_file);
                     return null;

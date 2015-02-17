@@ -22,7 +22,9 @@ class CacheWrapper
 
     public function __construct(array $config = null)
     {
-        require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Reo/Classic/CacheLite.php');
+        if(!@class_exists('Reo_Classic_CacheLite', false)){
+            require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Reo/Classic/CacheLite.php');
+        }
         if (isset($config)) {
             $this->config = $config + $this->config;
         }
