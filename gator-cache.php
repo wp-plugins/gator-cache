@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 2.0.6
+ * @version 2.0.7
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 2.0.6
+Version: 2.0.7
 */
 class WpGatorCache
 {
@@ -43,8 +43,9 @@ class WpGatorCache
     protected static $webUser;
     protected static $multiSiteData;
     const PREFIX = 'gtr_cache';
-    const VERSION = '2.0.6';
+    const VERSION = '2.0.7';
     const JP_MOBILE_MOD = 'minileven';//JetPack mobile module slug
+    const SUPPORT_LINK = 'https://wordpress.org/support/plugin/gator-cache'; 
 
     public static function initBuffer()
     {
@@ -214,7 +215,7 @@ class WpGatorCache
     public static function addOptMenu()
     {
         if(current_user_can('install_plugins')){
-            add_menu_page('Gator Cache', 'Gator Cache', 'edit_posts', self::PREFIX, 'WpGatorCache::renderMenu', 'dashicons-performance', '74.5');
+            add_menu_page('Gator Cache', 'Gator Cache', 'edit_posts', self::PREFIX, 'WpGatorCache::renderMenu', 'dashicons-performance', '76.5');
         }
     }
 
@@ -234,6 +235,7 @@ class WpGatorCache
     public static function settingsLink($links)
     {
         $links[] = '<a href="' . admin_url('admin.php?page=' . self::PREFIX) .'">Settings</a>';
+        $links[] = '<a href="' . self::SUPPORT_LINK . '" target="_blank">Support</a>';
         return $links;
     }
 
@@ -769,7 +771,7 @@ class WpGatorCache
         $options = self::getOptions();
         GatorCache::getCache(
             $opts = GatorCache::getConfig(self::$configPath)->toArray()
-        )->remove($path, self::getCacheGroups($opts), true);
+        )->removeGroup($path, self::getCacheGroups($opts));
     }
 
     public static function filterCookieLifetime($lifetime)
