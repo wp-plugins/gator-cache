@@ -38,7 +38,7 @@ if ($config->get('jp_mobile') && false !== (@include_once(WP_CONTENT_DIR . '/plu
     }
 }
 $request = GatorCache::getRequest();
-if ('GET' !== $request->getMethod() || $request->hasQueryString() || ('/index.php' !== ($scriptName = $request->getScriptName()) && 'index.php' !== $scriptName)
+if ('GET' !== $request->getMethod() || $request->hasQueryString() || '.php' === substr($request->getRequestUri(), -4)
   || ($request->isSecure() && $config->get('skip_ssl'))
   || false === ($host = $config->get($request->isSecure() && $config->has('secure_host') ? 'secure_host' : 'host'))
   || $host !== $request->getHost()

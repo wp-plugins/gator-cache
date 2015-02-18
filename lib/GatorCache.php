@@ -30,7 +30,9 @@ class GatorCache
     public static function getRequest()
     {
         if (!isset(self::$request)) {
-            require_once(dirname(__FILE__) . '/Reo/Classic/Request.php');
+            if(!@class_exists('Reo_Classic_Request', false)){
+                require_once(dirname(__FILE__) . '/Reo/Classic/Request.php');
+            }
             if ('127.0.0.1' === $_SERVER['REMOTE_ADDR']) {
                 //add the proxy
                 Reo_Classic_Request::setTrustedProxies((array)'127.0.0.1');

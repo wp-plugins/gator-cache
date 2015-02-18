@@ -269,7 +269,7 @@ if(empty($postTypes)){?>
   <p class="result"></p>
   <p><i class="fa fa-bomb"></i> <?php _e('Purge the entire cache. All cache files will be deleted!');?> <button class="button-secondary purge"><i class="fa fa-refresh"></i> <?php _e('Purge', 'gatorcache');?></button></p>
 </form>
-<p><?php _e('Tech Support Forum:', 'gatorcache');?> <a href="http://gatordev.com/support/forum/gator-cache/" target="_blank">http://gatordev.com/support/forum/gator-cache/</a></p>
+<p><?php _e('Tech Support Forum:', 'gatorcache');?> <a href="<?php echo WpGatorCache::SUPPORT_LINK;?>" target="_blank"><?php echo WpGatorCache::SUPPORT_LINK;?></a></p>
 <p><?php _e('Tech Support Information:', 'gatorcache');?>
 <p><?php echo self::getSupportInfo();?></p>
 </div>
