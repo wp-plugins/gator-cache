@@ -4,7 +4,7 @@ Donate link: http://gatordev.com/gator-cache
 Tags: cache, performance, bbpress, woocommerce, multisite, jetpack mobile
 Requires at least: 3.8
 Tested up to: 4.1
-Stable tag: 2.0.7
+Stable tag: 2.0.8
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -49,6 +49,8 @@ Click on the "Purge Cache" button on the admin toolbar. This brings you to the D
 
 == Changelog ==
 
+= 2.0.8 =
+* Fixes typo in 2.0.7 bugfix. Props @ronangelo.
 = 2.0.7 =
 * Fixes bug with posts refreshing when comments are added or updated.
 = 2.0.6 =

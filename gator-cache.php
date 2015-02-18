@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 2.0.7
+ * @version 2.0.8
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 2.0.7
+Version: 2.0.8
 */
 class WpGatorCache
 {
@@ -43,7 +43,7 @@ class WpGatorCache
     protected static $webUser;
     protected static $multiSiteData;
     const PREFIX = 'gtr_cache';
-    const VERSION = '2.0.7';
+    const VERSION = '2.0.8';
     const JP_MOBILE_MOD = 'minileven';//JetPack mobile module slug
     const SUPPORT_LINK = 'https://wordpress.org/support/plugin/gator-cache'; 
 
@@ -771,7 +771,7 @@ class WpGatorCache
         $options = self::getOptions();
         GatorCache::getCache(
             $opts = GatorCache::getConfig(self::$configPath)->toArray()
-        )->removeGroup($path, self::getCacheGroups($opts));
+        )->removeGroups($path, self::getCacheGroups($opts));
     }
 
     public static function filterCookieLifetime($lifetime)
