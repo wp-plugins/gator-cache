@@ -1,7 +1,7 @@
 <?php
 /**
  * @package Gator Cache
- * @version 2.0.8
+ * @version 2.0.9
  */
 /*
 Plugin Name: Gator Cache
@@ -11,7 +11,7 @@ Author: GatorDev
 Author URI: http://www.gatordev.com/
 Text Domain: gatorcache
 Domain Path: /lang
-Version: 2.0.8
+Version: 2.0.9
 */
 class WpGatorCache
 {
@@ -31,7 +31,9 @@ class WpGatorCache
         'version' => false,
         'multisite_paths' => false,
         'enable_hooks' => false,
-        'jp_mobile_cache' => false
+        'jp_mobile_cache' => false,
+        'cache_warm' => false,
+        'skip_feeds' => false
     );
 
     protected static $options;
@@ -39,13 +41,14 @@ class WpGatorCache
     protected static $configPath;
     protected static $post;
     protected static $refresh = false;
-    protected static $sslHandler;
+    protected static $sslHandler; // specific handler for WordPressHTTPS
+    protected static $obHandlers = array(); // array of generic handlers for other ob handlers that have started before GatorCache
     protected static $webUser;
     protected static $multiSiteData;
     const PREFIX = 'gtr_cache';
-    const VERSION = '2.0.8';
-    const JP_MOBILE_MOD = 'minileven';//JetPack mobile module slug
-    const SUPPORT_LINK = 'https://wordpress.org/support/plugin/gator-cache'; 
+    const VERSION = '2.0.9';
+    const JP_MOBILE_MOD = 'minileven'; // JetPack mobile module slug
+    const SUPPORT_LINK = 'https://wordpress.org/support/plugin/gator-cache';
 
     public static function initBuffer()
     {
@@ -55,7 +58,8 @@ class WpGatorCache
         if (!$options['enabled']
           || '.php' === ($ext = substr($path = $request->getPathInfo(), -4)) || '.txt' === $ext || '.xml' === $ext //uri returns the whole qs
           || (defined('DONOTCACHEPAGE') && DONOTCACHEPAGE)
-          || !isset($post)// && !is_feed())
+          || !isset($post)
+          || ($options['skip_feeds'] && is_feed())
           || 'GET' !== $request->getMethod()
           || $request->hasQueryString()
           || ('post' !== $post->post_type && 'page' !== $post->post_type && !in_array($post->post_type, self::getCacheTypes()))
@@ -68,10 +72,12 @@ class WpGatorCache
           || (self::isJetPackMobileSite() && !$options['jp_mobile_cache'])
           //|| ($options['enable_hooks'] && apply_filters('gc_skip_cache', false))
           //|| (false !== $options['multisite_paths'] && self::isMultiSubPath($path))
-          || ($request->isSecure() && ($options['skip_ssl'] || self::sslObHandlers()))) {
-          //obhandlers has to be last
-              return;
+          || (($isSecure = $request->isSecure()) && $options['skip_ssl'])
+         ) {
+            return;
         }
+        // check for compatiblity with plugins that modify output from buffers added before this
+        self::checkObHandlers($isSecure);
         ob_start('WpGatorCache::onBuffer');
     }
 
@@ -90,12 +96,17 @@ class WpGatorCache
         $cache = GatorCache::getCache($opts = $config->toArray());//jpmobile group is set in advanced-cache.php
         if ($options['debug']) {
             global $post;
-            $buffer .= "\n" . '<!-- Gator Cached ' . $post->post_type . (isset(self::$sslHandler) ? ' via ' . self::$sslHandler : '') . ' on [' . gmdate('Y-m-d H:i:s', time() + (get_option('gmt_offset') * 3600)) . '] -->';
+            $buffer .= ($debugMsg = "\n" . '<!-- Gator Cached ' . $post->post_type . (isset(self::$sslHandler) ? ' via ' . self::$sslHandler : '') . ' on [' . gmdate('Y-m-d H:i:s', time() + (get_option('gmt_offset') * 3600)) . '] -->');
+        } else {
+            $debugMsg = '';
         }
         $request = GatorCache::getRequest();
         if (!$cache->has($path = $request->getPathInfo(), $opts['group'])) {
             if (isset(self::$sslHandler) && false !== ($replace = self::doHttpsHandler($buffer))) {
                 $buffer = $replace;
+            }
+            if (!empty(self::$obHandlers)) {
+                $buffer = self::doObHandlers($buffer, $debugMsg);
             }
             $result = $cache->save($path, $buffer, $request->isSecure() ? 'ssl@' . $opts['group'] : $opts['group']);//return $result;
         }
@@ -185,8 +196,16 @@ class WpGatorCache
                 self::copyAdvCache();
                 self::setContentTypes(GatorCache::getConfig(self::$configPath));
             }
-            if (3 > $version) {//latest version should copy this
+            if (1 === version_compare('2.0.8', $options['version'])) {
+                //latest version should copy this
                 self::copyAdvCache();
+            }
+            if (1 === version_compare('2.0.9', $options['version'])) {
+                //initialize cache warm variable
+                $config = GatorCache::getConfig(self::$configPath);
+                if (!$config->has('cache_warm')) {
+                    $config->save('cache_warm', false);
+                }
             }
             //upgrades done or nothing to upgrade, update the version
             $wpConfig->set('version', self::$options['version'] = self::VERSION);
@@ -214,7 +233,7 @@ class WpGatorCache
 
     public static function addOptMenu()
     {
-        if(current_user_can('install_plugins')){
+        if (current_user_can('install_plugins')) {
             add_menu_page('Gator Cache', 'Gator Cache', 'edit_posts', self::PREFIX, 'WpGatorCache::renderMenu', 'dashicons-performance', '76.5');
         }
     }
@@ -239,13 +258,14 @@ class WpGatorCache
         return $links;
     }
 
-    public static function addToolbarButton(){
+    public static function addToolbarButton()
+    {
         global $wp_admin_bar;
-        if(!isset($wp_admin_bar) || !current_user_can('install_plugins')){
+        if (!isset($wp_admin_bar) || !current_user_can('install_plugins')) {
             return;
         }
         $options = self::getOptions();
-        if(!$options['installed']){
+        if (!$options['installed']) {
             return;
         }
         $wp_admin_bar->add_node(array(
@@ -275,7 +295,7 @@ class WpGatorCache
         wp_enqueue_style('jquery-ui', '//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/themes/redmond/jquery-ui.css');
         wp_enqueue_style('chosen', $pluginUrl . '/css/chosen.css');
         wp_enqueue_style('gator-cache', $pluginUrl . '/css/gator-cache.css');
-        wp_enqueue_style('font-awesome', '//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css');
+        wp_enqueue_style('font-awesome', '//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css');
     }
 
     public static function filterCacheUpdate($v)
@@ -378,7 +398,7 @@ class WpGatorCache
         }
         $options = self::getOptions();
         $update = false;
-        $cache = array('lifetime' => null, 'enabled' => null, 'skip_user' => null, 'debug' => null, 'skip_ssl' => null);
+        $cache = array('lifetime' => null, 'enabled' => null, 'skip_user' => null, 'debug' => null, 'skip_ssl' => null, 'cache_warm' => null);
         switch ($_POST['action']) {
             case 'gci_crf':
             case 'gci_xrf':
@@ -432,12 +452,12 @@ class WpGatorCache
             case 'gci_dir':
             case 'gci_xex':
                 if (empty($_POST['ex_dir']) || '' === ($dir = trim(wp_kses(stripslashes($_POST['ex_dir']), 'strip')))
-                  || '' === $dir = trim(preg_replace('~^/+|/+$~', '', $dir))) {
+                  || ('/' !== ($dir = trim($dir)) && '' === ($dir = preg_replace('~^/+|/+$~', '', $dir)))) {
                     $error = __('Please enter a path name', 'gatorcache');
                     GatorCache::getJsonResponse()->setParam('error', $error)->send();
                 }
                 //if(!filter_var(get_option('siteurl') . ($dir = '/' . preg_replace('~\s+~', '-', $dir) . '/'), FILTER_VALIDATE_URL, FILTER_FLAG_PATH_REQUIRED)){}
-                $key = array_search($dir = '/' . preg_replace('~\s+~', '-', $dir) . '/', $options['exclude_paths']);
+                $key = array_search($dir = ('/' === $dir) ? '/' : '/' . preg_replace('~\s+~', '-', $dir) . '/', $options['exclude_paths']);
                 if ('gci_xex' === $_POST['action']) {
                     if (false !== $key) {
                         unset($options['exclude_paths'][$key]);
@@ -479,12 +499,17 @@ class WpGatorCache
                 $skip_ssl = !isset($_POST['cache_ssl']) || '1' !== $_POST['cache_ssl'];
                 $enable_hooks = isset($_POST['enable_hooks']) && '1' === $_POST['enable_hooks'];
                 $jp_mobile_cache = isset($_POST['jp_mobile_cache']) && '1' === $_POST['jp_mobile_cache'];
-                if ($refresh !== $options['refresh'] || $skip_ssl !== $options['skip_ssl'] || $enable_hooks !== $options['enable_hooks'] || $jp_mobile_cache !== $options['jp_mobile_cache']) {
+                $cache_warm = isset($_POST['cache_warm']) && '1' === $_POST['cache_warm'];
+                $skip_feeds = !isset($_POST['cache_feeds']) || '1' !== $_POST['cache_feeds'];
+                if ($refresh !== $options['refresh'] || $skip_ssl !== $options['skip_ssl'] || $enable_hooks !== $options['enable_hooks']
+                  || $jp_mobile_cache !== $options['jp_mobile_cache'] || $cache_warm !== $options['cache_warm'] || $skip_feeds !== $options['skip_feeds']) {
                     $update = true;
                     $options['refresh'] = $refresh;
                     $options['enable_hooks'] = $enable_hooks;
                     $options['skip_ssl'] = $cache['skip_ssl'] = $skip_ssl;
                     $options['jp_mobile_cache'] = $cache['jp_mobile_cache'] = $jp_mobile_cache;
+                    $options['cache_warm'] = $cache['cache_warm'] = $cache_warm;
+                    $options['skip_feeds'] = $skip_feeds;
                 }
             break;
             case 'gci_gen':
@@ -595,7 +620,8 @@ class WpGatorCache
 /**
  * savePost
  *
- * Will invalidate the cache when post status is changed
+ * Will invalidate the cache when post is updated
+ * @note hooked on transition_post_status, which always fires on add or update
  */
     public static function savePost($new_status, $old_status, $post)
     {
@@ -605,6 +631,7 @@ class WpGatorCache
           || '' === get_option('permalink_structure')) {
             return;
         }
+
         $options = self::getOptions();
         $postTypes = array('post' => 0, 'page' => 0) + array_flip($options['post_types']);
         if ((isset($postTypes['bbpress']) || isset($options['refresh_paths']['bbpress'])) && isset($options['app_support']['bbpress'])) {
@@ -771,7 +798,11 @@ class WpGatorCache
         $options = self::getOptions();
         GatorCache::getCache(
             $opts = GatorCache::getConfig(self::$configPath)->toArray()
-        )->removeGroups($path, self::getCacheGroups($opts));
+        )->removeGroups($path, $groups = self::getCacheGroups($opts));
+        //purge the feed
+        if (!$options['skip_feeds']) {
+            GatorCache::getCache($opts)->removeGroups('/comments/feed', $groups);
+        }
     }
 
     public static function filterCookieLifetime($lifetime)
@@ -811,6 +842,33 @@ class WpGatorCache
         return $name ? self::$webUser['user'] : self::$webUser['group'];
     }
 
+    public static function getCacheDir()
+    {
+        self::getOptions();//loads GatorCache and config path
+        return GatorCache::getConfig(self::$configPath)->get('cache_dir');
+    }
+
+    public static function getCache()
+    {
+        self::getOptions();
+        return GatorCache::getCache(GatorCache::getConfig(self::$configPath)->toArray());
+    }
+
+/**
+ * purgePath
+ *
+ * Public access to purging a url path. Will purge in all cache groups.
+ *
+ * @param $path string the relative url path
+ */
+    public static function purgePath($path)
+    {
+        $options = self::getOptions();
+        GatorCache::getCache(
+            $opts = GatorCache::getConfig(self::$configPath)->toArray()
+        )->removeGroups($path, self::getCacheGroups($opts));
+    }
+
     protected static function getOptions()
     {
         if (isset(self::$options)) {
@@ -829,8 +887,11 @@ class WpGatorCache
 
     protected static function hasPathExclusion($path)
     {
+        if ('/' === $path) {
+            return in_array('/', self::$options['exclude_paths']);
+        }
         foreach (self::$options['exclude_paths'] as $exPath) {
-            if (strstr($path, $exPath)) {
+            if ('/' !== $exPath && strstr($path, $exPath)) {
                 return true;
                 break;
             }
@@ -1105,7 +1166,7 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
             return false;
         }
         //for apache, make sure htaccess protects the cache dir
-        if(!@file_exists($htaccess = $cacheDir . '/.htaccess')){
+        if (!@file_exists($htaccess = $cacheDir . '/.htaccess')) {
             @file_put_contents($htaccess, "Order Deny,Allow\nDeny from all\nAllow from env=redirect_gc_green\n") ;
         }
         //check wp cache is set and the right adv cache is present
@@ -1220,23 +1281,27 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
         }
     }
 
-    protected static function sslObHandlers()
+    protected static function checkObHandlers($isSecure)
     {
         $buffers = ob_list_handlers();
         if (empty($buffers)) {
             return false;
         }
-        for ($pos = false, $ct = count($buffers), $xx=$ct-1;$xx>-1;$xx--) {
-            if (0 === strpos($buffers[$xx], 'WordPressHTTPS')) {
+        for ($buffered = false, $ct = count($buffers), $xx = 0; $xx < $ct; $xx++) {
+            if (0 === strpos($buffers[$xx], 'WordPressHTTPS') && $isSecure) {
                 //look for the https plugin ob handler
-                $pos = $xx;
+                $buffered = true;
                 self::$sslHandler = $buffers[$xx];
-                break;
+                // break;
+            } elseif ('WPMinify::modify_buffer' === $buffers[$xx] && isset($GLOBALS['wp_minify'])
+              && @class_exists('WPMinify', false) && $GLOBALS['wp_minify'] instanceof WPMinify) {
+                self::$obHandlers[] = array('handler' => 'wp_minify', 'method' => 'modify_buffer');
+                $buffered = true;
             }
         }
-        if (false !== $pos) {
-            //kill the https cache buffer and whatever other ones are there on the way
-            for ($num = $ct - $pos, $xx=0;$xx<$num;$xx++) {
+        if ($buffered) {
+            // kill the buffers so the callback handlers are not called twice
+            for ($xx = 0; $xx < $ct; $xx++) {
                 ob_end_clean();
             }
         }
@@ -1246,19 +1311,33 @@ Writable: ' . (is_writable(self::$path . 'lib' . DIRECTORY_SEPARATOR . 'config.i
     protected static function doHttpsHandler($buffer)
     {
         global $wordpress_https;
-        //recent versions us a module
+        // recent versions use a module
         $module = false;
         list($class, $method) = explode('::', self::$sslHandler);
         if (strstr($class, 'Module_Parser')) {
             $module = $wordpress_https->getModule('Parser');
         }
         if (isset($wordpress_https) && isset($method) && method_exists(false === $module ? $wordpress_https : $module, $method)) {
-            $out = false === $module ? $wordpress_https->{$method}($buffer) : $module->{$method}($buffer);//let WordPressHTTPS parse out theme developers src tag shananigans
+            $out = false === $module ? $wordpress_https->{$method}($buffer) : $module->{$method}($buffer);// let WordPressHTTPS parse out theme developers src tag shananigans
             if (!empty($out)) {
                 return $out;
             }
         }
         return false;
+    }
+
+    protected static function doObHandlers($buffer, $debugMsg)
+    {
+        foreach (self::$obHandlers as $handler) {
+            if (isset($GLOBALS[$handler['handler']])) {
+                // this strips the cached on debug msg
+                $output = $GLOBALS[$handler['handler']]->{$handler['method']}($buffer);
+                if (!empty($output)) {
+                    $buffer = $output . ('' === $debugMsg ? '' : str_replace(' on [', ' via WPMinify on [', $debugMsg));
+                }
+            }
+        }
+        return $buffer;
     }
 
     protected static function disableCache($all = true)

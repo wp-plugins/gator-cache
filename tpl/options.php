@@ -69,7 +69,7 @@ if(isset($postTypes['wooframework'])){//woothemes
 </div>
 <div id="tabs-6">
   <form id="gci_ref" method="post" action="" autocomplete="off">
-    <p class="bmpTxt"><?php _e('Automatic refresh rules for posts, pages and selected custom post types:', 'gatorcache');?></p>
+    <p class="bmpTxt"><i class="fa fa-refresh"></i> <?php _e('Automatic refresh rules for posts, pages and selected custom post types:', 'gatorcache');?></p>
     <p>
       <input type="checkbox" name="rf_home" id="rf_home" value="1"<?php if($options['refresh']['home']){echo ' checked="checked"';}?>/> 
       <label for="rf_home"><?php _e('Refresh cached home page when posts are updated or newly published.', 'gatorcache');?></label> 
@@ -84,19 +84,29 @@ if(isset($postTypes['wooframework'])){//woothemes
       <label for="rf_all"><?php _e('Refresh all pages. This is only necessary if your recent posts or custom posts, such as products, widget is on all pages.', 'gatorcache');?></label> 
     </p>
 <?php }?>
-    <p class="bmpTxt"><?php _e('SSL Settings:', 'gatorcache');?></p>
+    <p class="bmpTxt"><i class="fa fa-lock"></i> <?php _e('SSL Settings:', 'gatorcache');?></p>
     <p>
       <input type="checkbox" name="cache_ssl" id="cache_ssl" value="1"<?php if(!$options['skip_ssl']){echo ' checked="checked"';}?>/> 
       <label for="cache_ssl"><?php _e('Cache secure SSL https protocol pages', 'gatorcache');?></label>
     </p>
+    <p class="bmpTxt"><i class="fa fa-rss"></i> <?php _e('Feeds:', 'gatorcache');?></p>
+    <p>
+      <input type="checkbox" name="cache_feeds" id="cache_feeds" value="1"<?php if(!$options['skip_feeds']){echo ' checked="checked"';}?>/> 
+      <label for="cache_feeds"><?php echo sprintf('%s <i class="fa fa-info-circle"></i>%s', __('Cache RSS feeds', 'gatorcache'), __('Will be refreshed upon content or comment update', 'gatorcache'));?></label> 
+    </p>
+    <p class="bmpTxt"><i class="fa fa-download"></i> <?php _e('Cache Warming:', 'gatorcache');?></p>
+    <p>
+      <input type="checkbox" name="cache_warm" id="cache_warm" value="1"<?php if($options['cache_warm']){echo ' checked="checked"';}?>/> 
+      <label for="cache_warm"><?php _e('Regenerate cached content that is automatically refreshed', 'gatorcache');?></label>
+    </p>
 <?php if(self::isJetPackMobile()){?>
-    <p class="bmpTxt"><?php _e('JetPack Mobile:', 'gatorcache');?></p>
+    <p class="bmpTxt"><i class="fa fa-mobile"></i> <?php _e('JetPack Mobile:', 'gatorcache');?></p>
     <p>
       <input type="checkbox" name="jp_mobile_cache" id="jp_mobile_cache" value="1"<?php if($options['jp_mobile_cache']){echo ' checked="checked"';}?>/> 
       <label for="jp_mobile_cache"><?php _e('Cache JetPack Mobile Pages', 'gatorcache');?></label>
     </p>
 <?php }?>
-    <p class="bmpTxt"><?php _e('Advanced Settings:', 'gatorcache');?></p>
+    <p class="bmpTxt"><i class="fa fa-exchange"></i> <?php _e('Advanced Settings:', 'gatorcache');?></p>
     <p>
       <input type="checkbox" name="enable_hooks" id="enable_hooks" value="1"<?php if($options['enable_hooks']){echo ' checked="checked"';}?>/> 
       <label for="enable_hooks"><?php _e('Enabled Hooks. This is only neccessary if you are using custom code that interacts with GatorCache hooks.', 'gatorcache');?></label>
@@ -145,7 +155,7 @@ if(!empty($postTypes)){?>
 <div id="tabs-5">
   <form id="gci_http" method="post" action="" autocomplete="off">
     <p><?php _e('Recommended webserver rules for http caching.', 'gatorcache');?></p>
-    <p class="bmpTxt"><?php _e('Apache Rules:', 'gatorcache');?></p>
+    <p class="bmpTxt"><i class="fa fa-server"></i> <?php _e('Apache Rules:', 'gatorcache');?></p>
 <?php $warnLink = __('see below', 'gatorcache');
 if(!strstr($cacheDir = $config->get('cache_dir'), ABSPATH)){//cache dir is parallel to doc root, recommended?>
 <p><i class="fa fa-info-circle"></i> <?php _e('Add these rules to your apache virtual hosts config file.', 'gatorcache');?></p>
@@ -219,7 +229,7 @@ else{?>
   <p><button class="button-primary"><?php _e('Update', 'gatorcache');?></button></p>
   <p>*<?php printf(__('Since pages are automatically refreshed a relatively high or %s lifetime can be set.', 'gatorcache'), '<em>' . __('Infinite', 'gatorcache') . '</em>');?></p>
   <p><i class="fa fa-info-circle"></i> <?php _e('When new posts are published, your cached archive or category pages will be automatically refreshed.', 'gatorcache');?></p>
-  <p><i class="fa fa-cog"></i> <em><strong>Gator Cache</strong></em> version <?php echo $options['version']?></p>
+  <p><i class="fa fa-cog"></i> <em><strong>Gator Cache</strong></em> version <?php echo $options['version'];?></p>
 </form>
 </div>
 <div id="tabs-2">

@@ -13,8 +13,9 @@ class CacheWrapper
 {
     protected $cacheTtls = array();
     protected $cache;
+    protected $cacheWarmer;
     protected $config = array(
-        'lifetime' => 0, 'cache_dir' => '/tmp', 'enabled' => true,
+        'lifetime' => 0, 'cache_dir' => '/tmp', 'enabled' => true, 'cache_warm' => false,
         'last_modified' => false, 'pingback' => false, 'skip_ssl' => true
     );
     const DIRECTORY_INDEX = 'index.html';
@@ -22,7 +23,7 @@ class CacheWrapper
 
     public function __construct(array $config = null)
     {
-        if(!@class_exists('Reo_Classic_CacheLite', false)){
+        if (!@class_exists('Reo_Classic_CacheLite', false)) {
             require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'Reo/Classic/CacheLite.php');
         }
         if (isset($config)) {
@@ -31,7 +32,7 @@ class CacheWrapper
         $this->config['lifetime'] = (int)$this->config['lifetime'];
         $this->cache = new Reo_Classic_CacheLite($this->config['cache_dir'], array(
             'lifeTime'         => $this->config['lifetime'],
-            'debug'            => false,//$this->config['debug'] this will only throw exceptions when purging non-existent stuff
+            'debug'            => false, //$this->config['debug'] this will only throw exceptions when purging non-existent stuff
             'readControl'      => false,
             'hashedDirectoryUmask' => 0755,
             'fileNameHashMode' => 'apache'
@@ -98,6 +99,14 @@ class CacheWrapper
         foreach ($groups as $group) {
             $result = $this->remove($id, $group, $check);
         }
+
+        if ($this->config['cache_warm']) {
+            $this->getCacheWarmer()->warmUri($id);
+            if ($this->config['jp_mobile_cache']) {
+                $this->getCacheWarmer()->warmUri($id, true);
+            }
+        }
+
         return $result;
     }
 
@@ -112,6 +121,37 @@ class CacheWrapper
             $result = $this->purge($group);
         }
         return $result;
+    }
+
+/**
+ * warm
+ * 
+ * Warms the cache for a given url, eg get_permalink() for a given post
+ */ 
+    public function warm($url, $check = false)
+    {
+        $group = $this->config['group'];
+        // secure url
+        if (0 === strpos($url, 'https')) {
+            if ($this->config['skip_ssl']) {
+                return false;
+            }
+            $group = 'ssl@' . $group;
+        }
+
+        if (false !== ($path = parse_url($url, PHP_URL_PATH)) && !$this->has($path, $group)) {
+            if ($check) {
+                // just check the url, returns true if it needs to be warmed
+                //var_dump($this->cache->getFileName());
+                return true;
+            }
+            $this->getCacheWarmer()->warmUrl($url);
+            if ($this->config['jp_mobile_cache']) {
+                $this->getCacheWarmer()->warmUrl($url);
+            }
+            return true;
+        }
+        return false;
     }
 
     public function getCache()
@@ -133,6 +173,17 @@ class CacheWrapper
             }
         }
         return false;
+    }
+
+    public function getCacheWarmer()
+    {
+        if (!isset($this->cacheWarmer)) {
+            if (!@class_exists('GatorCacheWarmer', false)) {
+                require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'GatorCacheWarmer.php');
+            }
+            $this->cacheWarmer = new GatorCacheWarmer(site_url());
+        }
+        return $this->cacheWarmer;
     }
 
     protected function getKeyForUri($uri)
