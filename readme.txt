@@ -1,10 +1,10 @@
 === Gator Cache ===
 Contributors: GatorDog
 Donate link: http://gatordev.com/gator-cache
-Tags: cache, performance, bbpress, woocommerce, multisite, jetpack mobile
+Tags: cache, performance, optimize, bbpress, woocommerce, multisite, jetpack mobile
 Requires at least: 3.8
-Tested up to: 4.1
-Stable tag: 2.0.8
+Tested up to: 4.2.2
+Stable tag: 2.0.9
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,6 +22,7 @@ Gator Cache is an easy to manage page cache for WordPress. Once installed, it au
 *   Compatible with WordPress HTTPS, will cache pages secured by the plugin when applicable
 *   Compatible with WordPress Multisite
 *   Compatible with JetPack Mobile Site
+*   Compatible with WPMinifyFix
 *   Posts can be cached for logged-in WordPress users by role. You can cache pages for Subscribers, Customers or other roles while skipping the cache for Administrators
 *   Http caching supported with Apache and Nginx
 
@@ -47,8 +48,18 @@ No, GatorCache does not write to your htaccess. However, recommended Apache rewr
 
 Click on the "Purge Cache" button on the admin toolbar. This brings you to the Debug tab on the GatorCache admin panel, press the "Purge Cache" button to delete your entire cache.
 
+= What is Cache Warming? =
+
+Typically when a cache is refreshed, the cached file and it's contents are deleted. This is what GatorCache does when a post or page is updated. Then when a vistor visits that page, the cache is re-generated on the fly. This works well in most scenarios. However, if your pages are really slow when not cached, you can set GatorCache to "warm the cache". This simply means that when a post is updated and the content is removed from the cache, the post url will be pinged in the background in order to re-generate the cached content. This will prevent any visitors from getting non-cached content and slow-loading pages. Please note that when you purge the entire cache, and have cache warming enabled, that this will not regenerate the cache for the entire site.
+
 == Changelog ==
 
+= 2.0.9 =
+* Adds option for caching RSS feeds.
+* Adds compatiblity with WPMinifyFix plugin.
+* Fixes issue with excluding the home url, "/", in custom settings.
+* Verifies compatiblity with WordPress 4.2.2
+* Introduces cache warming.
 = 2.0.8 =
 * Fixes typo in 2.0.7 bugfix. Props @ronangelo.
 = 2.0.7 =

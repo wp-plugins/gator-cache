@@ -6,6 +6,7 @@ enabled = 0
 gzip = 1
 skip_user = 1
 last_modified = 0
+cache_warm = 0
 pingback = 0
 debug = 1
 skip_ssl = 1
